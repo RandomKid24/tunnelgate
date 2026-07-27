@@ -131,9 +131,12 @@ static Napi::Value CreateSession(const Napi::CallbackInfo& info) {
     std::string err = session->lastError().empty()
       ? "Failed to connect RDP session"
       : session->lastError();
+    UINT32 code = session->lastErrorCode();
     delete session;
     delete listener;
-    Napi::Error::New(env, err).ThrowAsJavaScriptException();
+    auto jsErr = Napi::Error::New(env, err);
+    jsErr.Set("freerdpCode", Napi::Number::New(env, code));
+    jsErr.ThrowAsJavaScriptException();
     return env.Null();
   }
 

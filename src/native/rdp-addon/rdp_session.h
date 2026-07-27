@@ -35,6 +35,7 @@ public:
   void disconnect();
   bool isConnected() const { return connected_; }
   const std::string& lastError() const { return lastError_; }
+  UINT32 lastErrorCode() const { return lastErrorCode_; }
 
   void sendPointerEvent(int flags, int x, int y);
   void sendKeyboardEvent(int flags, UINT16 code);
@@ -56,6 +57,7 @@ private:
   std::vector<uint8_t> frameBuffer_;
 
   std::string lastError_;
+  UINT32 lastErrorCode_ = 0;
   std::string host_;
   std::string serverHostname_;
   int port_;

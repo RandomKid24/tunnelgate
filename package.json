@@ -10,7 +10,7 @@
   "main": "dist/main/index.js",
   "scripts": {
     "dev:renderer": "vite",
-    "dev:main": "tsc -p tsconfig.main.json && electron . 2>nul",
+    "dev:main": "tsc -p tsconfig.main.json && electron .",
     "dev": "concurrently -k \"npm run dev:renderer\" \"npm run dev:main\"",
     "build:renderer": "vite build",
     "build:main": "tsc -p tsconfig.main.json",

@@ -23,6 +23,12 @@ type RdpEventCallback = (tunnelId: string, event: string, ...args: any[]) => voi
 const DEFAULT_WIDTH = 1280;
 const DEFAULT_HEIGHT = 720;
 
+const RETRYABLE_ERRORS = new Set([
+  131085, // ERRCONNECT_CONNECT_TRANSPORT_FAILED
+]);
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 1500;
+
 export class RdpViewManager {
   private addon: RdpAddon | null = null;
   private sessions = new Map<string, number>();
@@ -130,44 +136,64 @@ export class RdpViewManager {
     process.env.WLOG_FILEAPPENDER_OUTPUT_FILE_NAME = logFilename;
     process.env.WLOG_LEVEL = 'DEBUG';
 
-    try {
-      // Use stored dimensions if not provided on reconnect
-      if (width === undefined || height === undefined) {
-        const stored = this.lastDimensions.get(tunnelId);
-        width = stored?.width ?? DEFAULT_WIDTH;
-        height = stored?.height ?? DEFAULT_HEIGHT;
-      }
+    const startTime = Date.now();
 
-      const sessionId = this.addon.createSession(
-        '127.0.0.1', port, width, height, username, password, serverHostname ?? '127.0.0.1',
-        (x, y, w, h, buf) => {
-          this.forwardFrame(tunnelId, x, y, w, h, buf);
-        },
-        (type, ...args) => {
-          this.handleEvent(tunnelId, type, args);
-        },
-      );
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        // Use stored dimensions if not provided on reconnect
+        if (width === undefined || height === undefined) {
+          const stored = this.lastDimensions.get(tunnelId);
+          width = stored?.width ?? DEFAULT_WIDTH;
+          height = stored?.height ?? DEFAULT_HEIGHT;
+        }
 
-      this.lastDimensions.set(tunnelId, { width, height });
-      this.sessions.set(tunnelId, sessionId);
-      writeLog(tunnelId, 'RDP View', 'info', `RDP session created (id=${sessionId}) at ${width}x${height}`);
-      return true;
-    } catch (err: any) {
-      // Dump logs immediately on connection failure
-      this.dumpNativeLogs(tunnelId);
+        const sessionId = this.addon.createSession(
+          '127.0.0.1', port, width, height, username, password, serverHostname ?? '127.0.0.1',
+          (x, y, w, h, buf) => {
+            this.forwardFrame(tunnelId, x, y, w, h, buf);
+          },
+          (type, ...args) => {
+            this.handleEvent(tunnelId, type, args);
+          },
+        );
 
-      const rawMsg = err.message || '';
+        this.lastDimensions.set(tunnelId, { width, height });
+        this.sessions.set(tunnelId, sessionId);
 
-      if (isWin && rawMsg.includes('code=131087')) {
+        const elapsed = Date.now() - startTime;
+        if (attempt > 1) {
+          writeLog(tunnelId, 'RDP View', 'info',
+            `RDP connected successfully after ${attempt - 1} retries (${elapsed}ms total)`);
+        } else {
+          writeLog(tunnelId, 'RDP View', 'info',
+            `RDP session created (id=${sessionId}) at ${width}x${height}`);
+        }
+        return true;
+      } catch (err: any) {
+        const code: number | undefined = err.freerdpCode;
+
+        if (code === undefined || !RETRYABLE_ERRORS.has(code) || attempt === MAX_RETRIES) {
+          this.dumpNativeLogs(tunnelId);
+
+          if (isWin && code === 131087) {
+            writeLog(tunnelId, 'RDP View', 'warn',
+              'FreeRDP on Windows reported password-expired (131087) — likely false positive due to NLA/SSPI. Treating as generic error.');
+            throw new Error('Failed to create RDP session: RDP authentication failed (NLA compatibility issue). Try reconnecting or use the native client.');
+          }
+
+          const rawMsg = err.message || '';
+          const msg = `Failed to create RDP session: ${rawMsg}\n${err.stack || ''}`;
+          writeLog(tunnelId, 'RDP View', 'error', msg);
+          throw new Error(msg);
+        }
+
         writeLog(tunnelId, 'RDP View', 'warn',
-          'FreeRDP on Windows reported password-expired (131087) — likely false positive due to NLA/SSPI. Treating as generic error.');
-        throw new Error('Failed to create RDP session: RDP authentication failed (NLA compatibility issue). Try reconnecting or use the native client.');
+          `RDP transport failed (${code}). Retry ${attempt}/${MAX_RETRIES} in ${RETRY_DELAY_MS}ms...`);
+        await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
       }
-
-      const msg = `Failed to create RDP session: ${rawMsg}\n${err.stack || ''}`;
-      writeLog(tunnelId, 'RDP View', 'error', msg);
-      throw new Error(msg);
     }
+
+    throw new Error('RDP connection failed: exhausted all retry attempts');
   }
 
   disconnectView(tunnelId: string) {

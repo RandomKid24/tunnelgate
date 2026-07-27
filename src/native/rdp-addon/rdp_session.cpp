@@ -333,6 +333,7 @@ bool RdpSession::connect() {
   }
   if (connectResult != TRUE) {
     UINT32 lastError = freerdp_get_last_error(context_);
+    lastErrorCode_ = lastError;
     const char* errorStr = freerdp_get_last_error_string(lastError);
     char buf[256];
     if (errorStr) {

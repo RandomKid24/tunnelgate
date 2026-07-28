@@ -233,6 +233,7 @@ bool RdpSession::connect() {
   // NLA was previously disabled on Windows to work around SSPI loopback blocks,
   // but sspi_GlobalInit() + WITH_NATIVE_SSPI=OFF fully resolves that.
   // NLA must be TRUE — server rejects with HYBRID_REQUIRED_BY_SERVER without it.
+  freerdp_settings_set_bool(settings, FreeRDP_NegotiateSecurityLayer, TRUE);
   freerdp_settings_set_bool(settings, FreeRDP_TlsSecurity, TRUE);
   freerdp_settings_set_bool(settings, FreeRDP_RdpSecurity, TRUE);
   freerdp_settings_set_bool(settings, FreeRDP_NlaSecurity, TRUE);

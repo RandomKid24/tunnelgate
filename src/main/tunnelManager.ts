@@ -175,7 +175,7 @@ export class TunnelManager {
     const args = [
       'access', 'tcp',
       '--hostname', config.hostname,
-      '--url', `localhost:${port}`,
+      '--url', `127.0.0.1:${port}`,
       '--loglevel', 'debug',
     ];
 
@@ -416,15 +416,15 @@ export class TunnelManager {
   }
 
   private launchMstsc(tunnel: ManagedTunnel, port: number): void {
-    writeLog(tunnel.config.id, tunnel.config.name, 'info', `Launching: mstsc.exe /v:localhost:${port}`);
-    const proc = spawn('mstsc.exe', [`/v:localhost:${port}`], {
+    writeLog(tunnel.config.id, tunnel.config.name, 'info', `Launching: mstsc.exe /v:127.0.0.1:${port}`);
+    const proc = spawn('mstsc.exe', [`/v:127.0.0.1:${port}`], {
       stdio: 'ignore',
       windowsHide: false,
     });
 
     proc.on('error', (err) => {
       writeLog(tunnel.config.id, tunnel.config.name, 'error', `Failed to launch mstsc: ${err.message}`);
-      writeLog(tunnel.config.id, tunnel.config.name, 'info', `Manual connection: localhost:${port}`);
+      writeLog(tunnel.config.id, tunnel.config.name, 'info', `Manual connection: 127.0.0.1:${port}`);
     });
 
     proc.on('close', () => {
@@ -436,17 +436,17 @@ export class TunnelManager {
   }
 
   private launchMacRdp(tunnel: ManagedTunnel, port: number): void {
-    writeLog(tunnel.config.id, tunnel.config.name, 'info', `Tunnel ready. Connect RDP client to localhost:${port}`);
+    writeLog(tunnel.config.id, tunnel.config.name, 'info', `Tunnel ready. Connect RDP client to 127.0.0.1:${port}`);
     const proc = spawn('open', [
       '-b', 'com.microsoft.rdc.macos',
       '--args',
-      `full address:s:localhost:${port}`,
+      `full address:s:127.0.0.1:${port}`,
       `username:s:${tunnel.config.username}`,
     ], { stdio: 'ignore' });
 
     proc.on('error', () => {
       writeLog(tunnel.config.id, tunnel.config.name, 'info',
-        `Open Microsoft Remote Desktop and connect to localhost:${port} as ${tunnel.config.username}`
+        `Open Microsoft Remote Desktop and connect to 127.0.0.1:${port} as ${tunnel.config.username}`
       );
     });
   }

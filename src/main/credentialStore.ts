@@ -34,16 +34,7 @@ export class CredentialStore {
       return;
     }
 
-    const targets = [
-      `TERMSRV/localhost:${port}`,
-      `TERMSRV/127.0.0.1:${port}`,
-      `TERMSRV/localhost`,
-      `TERMSRV/127.0.0.1`,
-    ];
-    if (tunnelHostname) {
-      targets.push(`TERMSRV/${tunnelHostname}:${port}`);
-      targets.push(`TERMSRV/${tunnelHostname}`);
-    }
+    const targets = [`TERMSRV/127.0.0.1:${port}`];
     for (const target of targets) {
       await new Promise<void>((resolve, reject) => {
         const proc = spawn('cmdkey', [
@@ -79,16 +70,7 @@ export class CredentialStore {
       return;
     }
 
-    const targets = [
-      `TERMSRV/localhost:${port}`,
-      `TERMSRV/127.0.0.1:${port}`,
-      `TERMSRV/localhost`,
-      `TERMSRV/127.0.0.1`,
-    ];
-    if (tunnelHostname) {
-      targets.push(`TERMSRV/${tunnelHostname}:${port}`);
-      targets.push(`TERMSRV/${tunnelHostname}`);
-    }
+    const targets = [`TERMSRV/127.0.0.1:${port}`];
     for (const target of targets) {
       await new Promise<void>((resolve) => {
         const proc = spawn('cmdkey', ['/delete:' + target], {

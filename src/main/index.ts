@@ -184,6 +184,9 @@ function showMainWindow(): void {
 }
 
 app.whenReady().then(() => {
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('com.tunnelgate.app');
+  }
   createTray();
   createMainWindow();
 

@@ -91,10 +91,9 @@ export function Tunnels({ tunnels, loading, onAdd, onUpdate, onDelete, onConnect
         )}
       </div>
 
-      {showForm && (
+      {showForm && !editingTunnel && (
         <div style={{ marginBottom: 24, padding: 20, background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 8 }}>
           <TunnelForm
-            tunnel={editingTunnel ?? undefined}
             onSubmit={handleFormSubmit}
             onCancel={() => { setShowForm(false); setEditingTunnel(null); }}
           />
@@ -103,16 +102,26 @@ export function Tunnels({ tunnels, loading, onAdd, onUpdate, onDelete, onConnect
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {tunnels.map((tunnel) => (
-          <TunnelCard
-            key={tunnel.id}
-            tunnel={tunnel}
-            onConnect={onConnect}
-            onDisconnect={onDisconnect}
-            onEdit={handleEdit}
-            onDelete={onDelete}
-            onViewScreen={() => onViewScreen(tunnel)}
-            onViewLogs={() => onViewLogs(tunnel.id)}
-          />
+          <React.Fragment key={tunnel.id}>
+            <TunnelCard
+              tunnel={tunnel}
+              onConnect={onConnect}
+              onDisconnect={onDisconnect}
+              onEdit={handleEdit}
+              onDelete={onDelete}
+              onViewScreen={() => onViewScreen(tunnel)}
+              onViewLogs={() => onViewLogs(tunnel.id)}
+            />
+            {showForm && editingTunnel?.id === tunnel.id && (
+              <div style={{ padding: 20, background: 'var(--bg-card)', border: '1px solid var(--accent-blue)', borderRadius: 8, marginTop: -4 }}>
+                <TunnelForm
+                  tunnel={editingTunnel}
+                  onSubmit={handleFormSubmit}
+                  onCancel={() => { setShowForm(false); setEditingTunnel(null); }}
+                />
+              </div>
+            )}
+          </React.Fragment>
         ))}
       </div>
     </div>

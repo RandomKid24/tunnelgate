@@ -218,13 +218,13 @@ bool RdpSession::connect() {
       if (parsedDomain && strlen(parsedDomain) > 0) {
         freerdp_settings_set_string(settings, FreeRDP_Domain, parsedDomain);
       } else {
-        freerdp_settings_set_string(settings, FreeRDP_Domain, "");
+        freerdp_settings_set_string(settings, FreeRDP_Domain, ".");
       }
-      fileLog((std::string("[RDP] parsed domain='") + (parsedDomain ? parsedDomain : "") + "' user='" + (parsedUser ? parsedUser : "") + "' from username='" + normUsername + "'").c_str());
+      fileLog((std::string("[RDP] parsed domain='") + (freerdp_settings_get_string(settings, FreeRDP_Domain) ? freerdp_settings_get_string(settings, FreeRDP_Domain) : "") + "' user='" + (parsedUser ? parsedUser : "") + "' from username='" + normUsername + "'").c_str());
       free(parsedUser);
       free(parsedDomain);
     } else {
-      freerdp_settings_set_string(settings, FreeRDP_Domain, "");
+      freerdp_settings_set_string(settings, FreeRDP_Domain, ".");
     }
     fileLog((std::string("[RDP] credentials: username='") + (freerdp_settings_get_string(settings, FreeRDP_Username) ? freerdp_settings_get_string(settings, FreeRDP_Username) : "") + "' domain='" + (freerdp_settings_get_string(settings, FreeRDP_Domain) ? freerdp_settings_get_string(settings, FreeRDP_Domain) : "") + "' password_len=" + std::to_string(password_.length())).c_str());
   }
@@ -254,6 +254,7 @@ bool RdpSession::connect() {
 #endif
 
   freerdp_settings_set_bool(settings, FreeRDP_Authentication, TRUE);
+  freerdp_settings_set_bool(settings, FreeRDP_AutoLogonEnabled, TRUE);
   freerdp_settings_set_bool(settings, FreeRDP_DisableCredentialsDelegation, TRUE);
 
   freerdp_settings_set_bool(settings, FreeRDP_NSCodec, TRUE);

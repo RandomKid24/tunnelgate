@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { TunnelWithState } from '../hooks/useTunnels';
 
 interface Props {
@@ -178,21 +179,86 @@ export function TunnelCard({ tunnel, onConnect, onDisconnect, onEdit, onDelete, 
             Logs
           </ActionButton>
         )}
-        {showDeleteConfirm ? (
-          <>
-            <ActionButton onClick={() => { onDelete(tunnel.id); setShowDeleteConfirm(false); }} color="var(--accent-red)" variant="secondary">
-              Confirm
-            </ActionButton>
-            <ActionButton onClick={() => setShowDeleteConfirm(false)} color="var(--text-muted)" variant="secondary">
-              Cancel
-            </ActionButton>
-          </>
-        ) : (
-          <ActionButton onClick={() => setShowDeleteConfirm(true)} color="var(--text-muted)" variant="secondary">
-            Delete
-          </ActionButton>
-        )}
+        <ActionButton onClick={() => setShowDeleteConfirm(true)} color="var(--accent-red)" variant="secondary">
+          Delete
+        </ActionButton>
       </div>
+
+      {showDeleteConfirm && ReactDOM.createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            animation: 'fadeIn 0.15s ease-out',
+          }}
+          onClick={() => setShowDeleteConfirm(false)}
+        >
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              borderRadius: 12,
+              padding: 24,
+              width: '90%',
+              maxWidth: 400,
+              boxShadow: '0 20px 30px -5px rgba(0, 0, 0, 0.8), 0 0 20px rgba(239, 68, 68, 0.15)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>
+              Delete Tunnel?
+            </h3>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              Are you sure you want to delete <strong style={{ color: 'var(--text-primary)' }}>"{tunnel.name}"</strong>? This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  borderRadius: 6,
+                  border: '1px solid var(--border-color)',
+                  background: 'transparent',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  onDelete(tunnel.id);
+                  setShowDeleteConfirm(false);
+                }}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  borderRadius: 6,
+                  border: 'none',
+                  background: 'var(--accent-red)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                }}
+              >
+                Delete Tunnel
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

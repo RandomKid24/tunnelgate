@@ -101,14 +101,14 @@ export function RdpView({ tunnel, onBack }: Props) {
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { inlineSize, blockSize } = entry.borderBoxSize?.[0] ?? entry.contentBoxSize?.[0] ?? { inlineSize: DEFAULT_WIDTH, blockSize: DEFAULT_HEIGHT };
-        const dpr = 1; // Temporarily lock to 1.0 to reduce tunnel bandwidth until native code is recompiled
+        const dpr = window.devicePixelRatio || 1;
         const rawW = Math.max(640, Math.min(3840, Math.round(inlineSize * dpr)));
         let rawH = Math.max(480, Math.min(2160, Math.round(blockSize * dpr)));
         if (toolbarEl) {
           rawH = Math.max(480, Math.min(2160, rawH - Math.round(toolbarEl.offsetHeight * dpr)));
         }
         const snapped = getBestRdpSize(rawW, rawH);
-        console.log('Container measured:', rawW, rawH, '→ RDP:', snapped.width, snapped.height);
+        console.log('Container measured:', rawW, rawH, 'dpr:', dpr, '→ RDP:', snapped.width, snapped.height);
         connectSizeRef.current = snapped;
         // Only update canvas dimensions before connect (after connect, keep RDP resolution)
         if (!connectedRef.current) {
@@ -152,9 +152,12 @@ export function RdpView({ tunnel, onBack }: Props) {
       setError('');
       setPasswordUpdateRequired(false);
       try {
-        // Wait for ResizeObserver to measure the actual container
         await new Promise(r => setTimeout(r, 150));
-        const { width, height } = connectSizeRef.current;
+        const dpr = window.devicePixelRatio || 1;
+        const viewportW = Math.round(window.innerWidth * dpr);
+        const viewportH = Math.max(600, Math.round((window.innerHeight - 44) * dpr));
+        const bestSize = getBestRdpSize(viewportW, viewportH);
+        const { width, height } = (connectSizeRef.current.width > 800) ? connectSizeRef.current : bestSize;
         await window.cloudflareRdp.rdp.connect(tunnel.id, width, height);
         setCanvasWidth(width);
         setCanvasHeight(height);

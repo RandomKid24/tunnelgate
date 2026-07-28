@@ -303,7 +303,7 @@ export function RdpCanvas({ tunnelId, width, height, connected }: Props) {
         outline: 'none',
         background: '#000',
         objectFit: 'contain',
-        imageRendering: 'auto',
+        imageRendering: '-webkit-optimize-contrast',
       }}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}

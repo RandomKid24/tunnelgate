@@ -1,6 +1,7 @@
 appId: com.tunnelgate.app
 productName: TunnelGate
 npmRebuild: false
+afterPack: build/afterPack.mac.js
 directories:
   output: release
   buildResources: resources
@@ -17,6 +18,7 @@ extraResources:
     to: rdp-addon
     filter:
       - "*.dll"
+      - "*.dylib"
       - "*.node"
       - "*.cnf"
       - "ossl-modules/**/*"
@@ -35,9 +37,9 @@ mac:
   category: public.app-category.utilities
   hardenedRuntime: false
   gatekeeperAssess: false
-  # NOTE: hardened runtime is applied via manual codesign after build
-  # because electron-builder's re-signing corrupts Electron Framework on macOS 26.
-  # Run: codesign --deep --force --sign - --options runtime --entitlements build/entitlements.mac.plist TunnelGate.app
+  # Hardened runtime + ad-hoc signing is applied in afterPack.mac.js instead of
+  # electron-builder's built-in signing, which corrupts Electron Framework on
+  # macOS 26+. Must run before the DMG is created, not after.
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
 linux:

@@ -453,7 +453,7 @@ export class TunnelManager {
 
   private launchLinuxRdp(tunnel: ManagedTunnel, port: number): void {
     const clients: [string, string[]][] = [
-      ['xfreerdp', ['/v:localhost:' + port, '/u:' + tunnel.config.username, '/dynamic-resolution', '+fonts']],
+      ['xfreerdp', ['/v:localhost:' + port, '/u:' + tunnel.config.username, '/p:' + tunnel.password, '/dynamic-resolution', '+fonts']],
       ['remmina', ['--connect', `rdp://${tunnel.config.username}@localhost:${port}`]],
     ];
 

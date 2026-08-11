@@ -33,11 +33,29 @@ static void fileLog(const char* msg) {
   fflush(stderr);
 }
 
+// FreeRDP 2.x passes the certificate Common Name (the server's computer name)
+// directly to the verify callbacks. Capture it so serverName detection works on
+// Linux builds that link against system freerdp2 (Ubuntu/Debian stable).
+struct RdpSessionContext {
+  rdpContext _ctx;
+  RdpSession* session;
+};
+
+static void captureServerNameFromCommonName(freerdp* instance, const char* common_name) {
+  if (!common_name || !common_name[0]) return;
+  RdpSession* self = ((RdpSessionContext*)instance->context)->session;
+  if (self) {
+    self->setServerName(common_name);
+    fileLog((std::string("[RDP] verifyCertificateCallback: detected server name '") + common_name + "'").c_str());
+  }
+}
+
 static DWORD verifyCertificateCallback(freerdp* instance, const char* common_name,
                                        const char* subject, const char* issuer,
                                        const char* fingerprint, BOOL host_mismatch) {
   const char* host = freerdp_settings_get_string(instance->context->settings, FreeRDP_ServerHostname);
   if (host && (strcmp(host, "127.0.0.1") == 0 || strcmp(host, "localhost") == 0)) {
+    captureServerNameFromCommonName(instance, common_name);
     fileLog((std::string("[RDP] verifyCertificateCallback: Accepting loopback cert for ") + host).c_str());
     return 1; // Trust loopback certificate
   }
@@ -51,17 +69,13 @@ static DWORD verifyChangedCertificateCallback(freerdp* instance, const char* com
                                               const char* old_issuer, const char* old_fingerprint) {
   const char* host = freerdp_settings_get_string(instance->context->settings, FreeRDP_ServerHostname);
   if (host && (strcmp(host, "127.0.0.1") == 0 || strcmp(host, "localhost") == 0)) {
+    captureServerNameFromCommonName(instance, common_name);
     fileLog((std::string("[RDP] verifyChangedCertificateCallback: Accepting changed loopback cert for ") + host).c_str());
     return 1; // Trust changed loopback certificate
   }
   fileLog((std::string("[RDP] verifyChangedCertificateCallback: Rejecting changed non-loopback cert for ") + (host ? host : "(null)")).c_str());
   return 0; // Reject others
 }
-
-struct RdpSessionContext {
-  rdpContext _ctx;
-  RdpSession* session;
-};
 
 // Extract the server's computer name from the Common Name of the leaf
 // certificate in the presented PEM chain. Windows sets this to the machine's
@@ -298,12 +312,21 @@ bool RdpSession::connect() {
   // This allows connecting to servers with self-signed certificates or smaller key sizes (e.g. 1024-bit).
   freerdp_settings_set_uint32(settings, FreeRDP_TlsSecLevel, 1);
 
-  // External certificate management: the VerifyX509Certificate callback is
-  // ALWAYS invoked (even with IgnoreCertificate set), so we can capture the
-  // server's computer name from the certificate Common Name. We accept every
-  // cert since the connection goes over a loopback tunnel.
+  // External certificate management: on FreeRDP 3.x the VerifyX509Certificate
+  // callback is ALWAYS invoked (even with IgnoreCertificate set), so we can
+  // capture the server's computer name from the certificate Common Name and
+  // accept every cert since the connection goes over a loopback tunnel.
+  // On FreeRDP 2.x, IgnoreCertificate short-circuits BEFORE the verify callback
+  // runs, so it must be FALSE there; ExternalCertificateManagement then defers
+  // the decision to our verifyCertificateCallback (which accepts loopback and
+  // captures the server name).
+#if defined(FREERDP_VERSION_MAJOR) && FREERDP_VERSION_MAJOR >= 3
   freerdp_settings_set_bool(settings, FreeRDP_ExternalCertificateManagement, TRUE);
   freerdp_settings_set_bool(settings, FreeRDP_IgnoreCertificate, TRUE);
+#else
+  freerdp_settings_set_bool(settings, FreeRDP_ExternalCertificateManagement, TRUE);
+  freerdp_settings_set_bool(settings, FreeRDP_IgnoreCertificate, FALSE);
+#endif
 
 #if defined(FREERDP_VERSION_MAJOR) && FREERDP_VERSION_MAJOR >= 3
   // Skip the RC4-based RDP license exchange entirely.

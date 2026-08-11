@@ -2,8 +2,8 @@
 
 ## Overview
 
-Complete RDP rendering pipeline: C++ FreeRDP 3 addon compiled as Electron N-API native module,
-streaming GDI bitmap updates to a React `<canvas>` via IPC.
+Complete RDP rendering pipeline: C++ FreeRDP addon (v3 on macOS/Windows, v2 **or** v3 on Linux)
+compiled as Electron N-API native module, streaming GDI bitmap updates to a React `<canvas>` via IPC.
 
 ---
 
@@ -245,14 +245,33 @@ Wrap `createImageData`/`putImageData` in try/catch - can throw on invalid dimens
 - No codesign corruption issue
 
 ### Linux
-- FreeRDP 3 from system packages (`apt install freerdp3-dev`)
+- FreeRDP 2 **or** 3 from system packages (`apt install freerdp2-dev` on Ubuntu/Debian stable, `freerdp3-dev` on newer distros)
 - `.node` is a `.so`; `LD_LIBRARY_PATH` or `RPATH` controls resolution
 - No signing required
+- Server-name detection works on **both**: FreeRDP 3.x uses `verifyX509Certificate` (parses the PEM chain), FreeRDP 2.x captures the `common_name` passed directly to `verifyCertificateCallback`/`verifyChangedCertificateCallback`
 
 ### General
 - `Napi::ThreadSafeFunction` with queue size 1 prevents callback pileup
 - `BlockingCall` is safe from pump thread; `NonBlockingCall` also available
 - Frame data is `Buffer<uint8_t>::Copy()` - the pump thread owns the original data
+
+## Server Name Detection
+
+TunnelGate reads the real Windows computer name from the RDP server certificate so each tunnel can
+be identified (shown on the tunnel card, edit form, and RDP toolbar).
+
+### FreeRDP 3.x path (`FREERDP_VERSION_MAJOR >= 3`)
+1. `ExternalCertificateManagement=TRUE` + `IgnoreCertificate=TRUE` forces `VerifyX509Certificate` to be invoked on every handshake.
+2. The callback parses the presented PEM chain and extracts the leaf cert's Subject **Common Name (CN)** via `freerdp_certificate_get_common_name` (`rdp_session.cpp`).
+3. The CN is stored on the session (`setServerName`) and emitted as a `serverName` event from `postConnectCallback`.
+
+### FreeRDP 2.x path
+1. `IgnoreCertificate` **must stay FALSE** — on 2.x it short-circuits *before* the verify callbacks run.
+2. `ExternalCertificateManagement=TRUE` defers the decision to `verifyCertificateCallback`/`verifyChangedCertificateCallback`, which accept the loopback cert and pass the server name (`common_name`) directly.
+
+### Display & persistence
+- Renderer receives the `serverName` event (`RdpView.tsx`) and persists it to the tunnel via `rdpViewManager.ts`.
+- `store.ts` schema adds `serverName?: string`; the tunnel card shows it in green under the display name.
 
 ### Windows OpenSSL Legacy Provider (RC4)
 - FreeRDP 3 on Windows requires OpenSSL legacy provider for RC4 during RDP licensing
@@ -328,6 +347,11 @@ replace Framework from `node_modules` and `codesign --deep` manually.
 **Fix:** Committed the known-working local DLLs to `prebuilt/windows-x64/`. Updated `build-native.js` to always prefer `prebuilt/windows-x64/` over vcpkg binaries. The `rdp_addon.node` is still compiled by CI (correct, needed for Electron ABI), but runtime FreeRDP DLLs come from the repo.
 
 **Diagnostic rule:** `addon-debug.log` not created → crash is inside FreeRDP. `addon-debug.log` created but empty/partial → crash is in our C++ code.
+
+### Bug 11: Server Name Not Detected on FreeRDP 2.x (Linux)
+**Symptom:** On Linux builds linking `freerdp2-dev`, the server name never populated (stayed "Not detected yet").
+**Cause:** The `verifyX509Certificate` path is guarded by `#if FREERDP_VERSION_MAJOR >= 3`, so it was compiled out on 2.x. The 2.x fallback callbacks (`verifyCertificateCallback`/`verifyChangedCertificateCallback`) only accepted the cert and never captured the name. Additionally, `IgnoreCertificate=TRUE` on 2.x short-circuits *before* those callbacks run, so they never fired.
+**Fix:** Added `captureServerNameFromCommonName()` which stores the `common_name` passed directly by FreeRDP 2.x, called from both 2.x verify callbacks. Made the `IgnoreCertificate` value version-dependent: `TRUE` on 3.x (callback always fires), `FALSE` on 2.x (so the verify callback runs).
 
 ### Bug 4 (original): Stale Paint Closure
 **Symptom**: (Potential) paint uses old width/height after resize.

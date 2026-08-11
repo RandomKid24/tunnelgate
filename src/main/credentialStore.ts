@@ -34,7 +34,10 @@ export class CredentialStore {
       return;
     }
 
-    const targets = [`TERMSRV/127.0.0.1:${port}`];
+    // Inject BOTH the ported and host-only targets. mstsc's credential lookup
+    // strips the port, so the host-only target is the one that actually matches;
+    // the ported target covers older Windows behavior that keys on the full string.
+    const targets = [`TERMSRV/127.0.0.1:${port}`, 'TERMSRV/127.0.0.1'];
     for (const target of targets) {
       await new Promise<void>((resolve, reject) => {
         const proc = spawn('cmdkey', [
@@ -70,7 +73,7 @@ export class CredentialStore {
       return;
     }
 
-    const targets = [`TERMSRV/127.0.0.1:${port}`];
+    const targets = [`TERMSRV/127.0.0.1:${port}`, 'TERMSRV/127.0.0.1'];
     for (const target of targets) {
       await new Promise<void>((resolve) => {
         const proc = spawn('cmdkey', ['/delete:' + target], {

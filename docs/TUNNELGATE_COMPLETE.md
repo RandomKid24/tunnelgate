@@ -274,13 +274,13 @@ All handlers:
 
 - `encrypt(password)` → `safeStorage.encryptString()` → base64
 - `decrypt(encryptedBase64)` → base64 decode → `safeStorage.decryptString()`
-- `injectCredential()` — Windows only: `cmdkey /generic:TERMSRV/localhost:<port> /user:<user> /pass:<pass>`
-- `clearCredential()` — Windows only: `cmdkey /delete:TERMSRV/localhost:<port>`
+- `injectCredential()` — Windows only: `cmdkey /generic:TERMSRV/127.0.0.1:<port>` AND `cmdkey /generic:TERMSRV/127.0.0.1` (host-only — mstsc strips the port in its credential lookup, so the host-only entry is the one that actually matches)
+- `clearCredential()` — Windows only: `cmdkey /delete:TERMSRV/127.0.0.1:<port>` + `cmdkey /delete:TERMSRV/127.0.0.1`
 
 ### `src/main/store.ts` — Persistence
 
 - Uses `electron-store` with JSON schema validation
-- Stores: tunnels array, settings object
+- Stores: tunnels array (each with `id`, `name`, `hostname`, `port`, `username`, `encryptedPassword`, `rememberAfterSession`, `createdAt`, `lastConnectedAt`, and optional `serverName` auto-detected from the RDP certificate), settings object
 - `setSettings()` also calls `app.setLoginItemSettings()` for auto-start
 
 ### `src/main/logger.ts` — Logging
@@ -386,6 +386,7 @@ Canvas dimensions are frozen after the initial RDP connect to prevent buffer cle
 - **Connection duration timer**: Live "5m 32s" counter displayed next to hostname when connected
 - **Last connected time**: Relative timestamp ("5m ago") shown under hostname
 - **Port badge**: Subtle monospace badge showing `:3380` next to the status label
+- **Detected server name**: After the first successful connection, the real Windows computer name (read from the RDP certificate's Common Name) is shown in green monospace under the hostname
 - **Hover highlight**: Card lifts slightly and shows shadow on mouse hover
 - **Card enter animation**: Fade-in + slide-up when cards first appear
 
@@ -414,8 +415,8 @@ Canvas dimensions are frozen after the initial RDP connect to prevent buffer cle
 3. **Platform-specific NLA**:
    - **Windows**: `NlaSecurity=FALSE`, `TlsSecurity=TRUE` (avoids false ERRCONNECT_PASSWORD_EXPIRED from SSPI)
    - **Mac/Linux**: `NlaSecurity=TRUE` (standard NLA)
-4. `Authentication=TRUE`, `IgnoreCertificate=TRUE`, `NSCodec=TRUE`, `RemoteFxCodec=TRUE`, `FastPathOutput=TRUE`
-5. `PostConnect = postConnectCallback`
+4. `Authentication=TRUE`, `ExternalCertificateManagement=TRUE`, `IgnoreCertificate` (TRUE on FreeRDP 3.x so the X.509 callback always fires; FALSE on 2.x so the verify callbacks run — see server-name detection), `NSCodec=TRUE`, `RemoteFxCodec=TRUE`, `FastPathOutput=TRUE`
+5. `PostConnect = postConnectCallback`; on 3.x also `VerifyX509Certificate`, on 2.x `VerifyCertificate` + `VerifyChangedCertificate`
 6. `freerdp_connect()` → on fail: capture error code + string, cleanup
 7. On success: start pump thread
 
@@ -575,9 +576,9 @@ User clicks "Disconnect" or "← Back"
 | Feature | Windows | macOS | Linux |
 |---------|---------|-------|-------|
 | **Native RDP client** | `mstsc.exe` | Microsoft Remote Desktop | `xfreerdp` / `remmina` |
-| **Credential injection** | `cmdkey` (Windows Credential Manager) | Skipped | Skipped |
+| **Credential injection** | `cmdkey` — ported + host-only `TERMSRV/127.0.0.1` | Skipped (MRD has no CLI password → prompts) | `xfreerdp /p:<pass>` |
 | **NLA setting** | `NlaSecurity=TRUE`, `TlsSecurity=TRUE` | `NlaSecurity=TRUE` | `NlaSecurity=TRUE` |
-| **FreeRDP source** | `prebuilt/windows-x64/` (committed DLLs) | Homebrew `freerdp` | `apt install freerdp2-dev` |
+| **FreeRDP source** | `prebuilt/windows-x64/` (committed DLLs) | Homebrew `freerdp` | `apt install freerdp2-dev` / `freerdp3-dev` |
 | **Build generator** | VS auto-detected (2022/2026) via vcvarsall | Unix Makefiles | Unix Makefiles |
 | **Dylib handling** | Copy from `prebuilt/windows-x64/` | Copy .dylib, `install_name_tool`, ad-hoc sign | No extra step |
 | **cloudflared name** | `cloudflared.exe` | `cloudflared` | `cloudflared` |
@@ -695,7 +696,7 @@ Push to `main` branch.
 
 ### FreeRDP Setup
 
-- **Linux**: `apt-get install freerdp2-dev`
+- **Linux**: `apt-get install freerdp2-dev` (server-name detection works on 2.x and 3.x — 2.x captures `common_name` from the verify callbacks; 3.x parses the X.509 chain)
 - **macOS**: Builds FreeRDP 2.11.7 from source (brew ships 3.x but addon needs 2.x API), minimal features (no X11/SDL/ALSA/etc.), installs to `/usr/local/freerdp2`, sets `FREERDP_ROOT`
 - **Windows**: vcpkg installs FreeRDP for headers/link only. Runtime DLLs come from `prebuilt/windows-x64/` — CI-compiled FreeRDP DLLs crash inside `gdi_init_ex` (see Windows-Specific Issues below).
 

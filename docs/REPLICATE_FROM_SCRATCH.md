@@ -151,7 +151,9 @@ brew install cmake freerdp openssl
 
 ```bash
 sudo apt-get install cmake libfreerdp-dev libssl-dev build-essential
-# For FreeRDP 3:
+# FreeRDP 2 (Ubuntu/Debian stable):
+sudo apt-get install freerdp2-dev
+# OR FreeRDP 3 (newer distros):
 sudo apt-get install freerdp3-dev
 ```
 
@@ -516,13 +518,16 @@ export class CredentialStore {
   async injectCredential(tunnelId: string, tunnelName: string, username: string,
                           password: string, port: number): Promise<void> {
     // Windows only: injects into Windows Credential Manager for mstsc
-    // Uses cmdkey /generic:TERMSRV/localhost:<port> /user:<user> /pass:<pass>
-    // Also injects for 127.0.0.1 since cloudflared binds to both
+    // Uses cmdkey /generic:TERMSRV/<target> /user:<user> /pass:<pass>
+    // Injects BOTH the ported target (TERMSRV/127.0.0.1:<port>) and the
+    // host-only target (TERMSRV/127.0.0.1). mstsc strips the port during its
+    // credential lookup, so the host-only entry is the one that actually matches;
+    // the ported entry covers older Windows behavior that keys on the full string.
   }
 
   async clearCredential(tunnelId: string, tunnelName: string, port: number): Promise<void> {
-    // Windows only: cmdkey /delete:TERMSRV/localhost:<port>
-    // and /delete:TERMSRV/127.0.0.1:<port>
+    // Windows only: cmdkey /delete:TERMSRV/127.0.0.1:<port>
+    // and /delete:TERMSRV/127.0.0.1
   }
 
   isEncryptionAvailable(): boolean { return safeStorage.isEncryptionAvailable(); }
@@ -531,7 +536,8 @@ export class CredentialStore {
 
 **Key details:**
 
-- On Windows, credentials are injected into `TERMSRV/localhost:<port>` AND `TERMSRV/127.0.0.1:<port>`
+- On Windows, credentials are injected into `TERMSRV/127.0.0.1:<port>` **and** `TERMSRV/127.0.0.1` (host-only)
+- The host-only target exists because `mstsc`'s credential lookup strips the port — without it mstsc can still prompt despite cmdkey having the ported entry
 - Credentials are cleared after session if `forgetPasswordAfterSession` setting is true
 - On macOS/Linux, credential injection is skipped (log message only)
 
@@ -594,9 +600,9 @@ Uses `tree-kill` (SIGTERM) to kill the process tree. Clears Windows credentials 
 
 ### Launch Native RDP Client
 
-- **Windows**: `mstsc.exe /v:localhost:<port>` (injects credential first via cmdkey)
-- **macOS**: `open -b com.microsoft.rdc.macos --args full address:s:localhost:<port>`
-- **Linux**: Tries `xfreerdp /v:localhost:<port>` then `remmina --connect rdp://...`
+- **Windows**: `mstsc.exe /v:127.0.0.1:<port>` (injects credential first via cmdkey — both `TERMSRV/127.0.0.1:<port>` and `TERMSRV/127.0.0.1` so mstsc's port-stripped lookup matches)
+- **macOS**: `open -b com.microsoft.rdc.macos --args full address:s:127.0.0.1:<port> username:s:<user>` — MRD does **not** accept a password on the CLI, so it will still prompt for one
+- **Linux**: Tries `xfreerdp /v:localhost:<port> /u:<user> /p:<password>` (password passed on the CLI so it auto-logs-in) then `remmina --connect rdp://...`
 
 ---
 
@@ -951,7 +957,15 @@ static RdpSession* getSelf(rdpContext* ctx) {
    freerdp_settings_set_bool(settings, FreeRDP_TlsSecurity, TRUE);
    freerdp_settings_set_bool(settings, FreeRDP_RdpSecurity, TRUE);
    freerdp_settings_set_uint32(settings, FreeRDP_TlsSecLevel, 1);  // Allow self-signed certs
+   freerdp_settings_set_bool(settings, FreeRDP_ExternalCertificateManagement, TRUE);
+   // Version-dependent: 3.x must use TRUE (verifyX509Certificate always fires even
+   // with IgnoreCertificate). 2.x must use FALSE (IgnoreCertificate short-circuits
+   // BEFORE verifyCertificateCallback, which is where we capture the server name).
+   #if defined(FREERDP_VERSION_MAJOR) && FREERDP_VERSION_MAJOR >= 3
    freerdp_settings_set_bool(settings, FreeRDP_IgnoreCertificate, TRUE);
+   #else
+   freerdp_settings_set_bool(settings, FreeRDP_IgnoreCertificate, FALSE);
+   #endif
    freerdp_settings_set_bool(settings, FreeRDP_Authentication, TRUE);
    freerdp_settings_set_bool(settings, FreeRDP_NSCodec, TRUE);
    freerdp_settings_set_bool(settings, FreeRDP_RemoteFxCodec, TRUE);
@@ -960,11 +974,18 @@ static RdpSession* getSelf(rdpContext* ctx) {
 6. **Set callbacks:**
 
    ```cpp
+   // FreeRDP 3.x: verifyX509Certificate parses the PEM chain and reads the CN.
+   #if defined(FREERDP_VERSION_MAJOR) && FREERDP_VERSION_MAJOR >= 3
+   instance_->VerifyX509Certificate = verifyX509Certificate;
+   #else
+   // FreeRDP 2.x: the verify callbacks receive common_name directly; they accept
+   // the loopback cert AND capture the server name via captureServerNameFromCommonName().
    instance_->VerifyCertificate = verifyCertificateCallback;
    instance_->VerifyChangedCertificate = verifyChangedCertificateCallback;
+   #endif
    instance_->PostConnect = postConnectCallback;
    ```
-7. **Loopback cert trust** — `verifyCertificateCallback` trusts certs for `127.0.0.1` and `localhost` but rejects any other host (security through tunnel).
+7. **Loopback cert trust + server name detection** — the verify callbacks trust certs for `127.0.0.1` and `localhost` but reject any other host (security through tunnel). On both FreeRDP 2.x and 3.x the callbacks capture the certificate's Common Name (the Windows computer name) and emit it as a `serverName` event after connect, which TunnelGate persists to the tunnel so each server is identifiable in the UI.
 8. **Enable debug logging:**
 
    ```cpp
@@ -1754,9 +1775,9 @@ Both error and password-updated banners use `position: absolute` (not in flow) s
 | Feature                                  | Windows                                    | macOS                                          | Linux                            |
 | ---------------------------------------- | ------------------------------------------ | ---------------------------------------------- | -------------------------------- |
 | **Native RDP client**              | `mstsc.exe`                              | Microsoft Remote Desktop                       | `xfreerdp` / `remmina`       |
-| **Credential injection**           | `cmdkey` (Win Credential Manager)        | Skipped                                        | Skipped                          |
+| **Credential injection**           | `cmdkey` — ported AND host-only `TERMSRV/127.0.0.1` | Skipped (MRD has no CLI password; prompts) | `xfreerdp /p:<pass>`     |
 | **NLA setting**                    | `NlaSecurity=TRUE`, `TlsSecurity=TRUE` | `NlaSecurity=TRUE`                           | `NlaSecurity=TRUE`             |
-| **FreeRDP source**                 | vcpkg `freerdp:x64-windows`              | Homebrew `freerdp`                           | `apt install freerdp2-dev`     |
+| **FreeRDP source**                 | vcpkg `freerdp:x64-windows`              | Homebrew `freerdp`                           | `apt install freerdp2-dev` / `freerdp3-dev`     |
 | **Build generator**                | VS auto-detected (2022/2026) via vcvarsall  | Unix Makefiles                                 | Unix Makefiles                   |
 | **Dylib handling**                 | Copy DLLs + deps from vcpkg                | Copy .dylib,`install_name_tool`, ad-hoc sign | No extra step                    |
 | **cloudflared name**               | `cloudflared.exe`                        | `cloudflared`                                | `cloudflared`                  |
@@ -1818,7 +1839,7 @@ Trigger: Push to `main`. Matrix:
 
 Setup:
 
-- **Linux**: `apt-get install freerdp2-dev`
+- **Linux**: `apt-get install freerdp2-dev` (server-name detection works on both 2.x and 3.x — 2.x captures `common_name` from the verify callbacks, 3.x parses the X.509 chain)
 - **macOS**: Builds FreeRDP from source (brew ships 3.x if 2.x is needed), minimal features, installs to `/usr/local/freerdp2`, sets `FREERDP_ROOT`
 - **Windows**:
   1. `vcpkg install freerdp:x64-windows --no-binarycaching --classic` (for headers + link)

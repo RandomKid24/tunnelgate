@@ -10,6 +10,7 @@ export interface TunnelConfig {
   rememberAfterSession: boolean;
   createdAt: string;
   lastConnectedAt?: string;
+  serverName?: string;
 }
 
 export interface TunnelFormData {

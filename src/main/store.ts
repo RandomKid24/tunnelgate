@@ -31,6 +31,7 @@ export const store = new Store<Schema>({
           rememberAfterSession: { type: 'boolean' },
           createdAt: { type: 'string' },
           lastConnectedAt: { type: 'string' },
+          serverName: { type: 'string' },
         },
         required: ['id', 'name', 'hostname', 'username', 'encryptedPassword', 'rememberAfterSession', 'createdAt'],
       },

@@ -7,6 +7,7 @@
 #include <freerdp/version.h>
 #include <freerdp/gdi/gdi.h>
 #include <freerdp/input.h>
+#include <freerdp/crypto/certificate.h>
 #include <winpr/wlog.h>
 #include <winpr/sspi.h>
 #include <thread>
@@ -62,6 +63,57 @@ struct RdpSessionContext {
   RdpSession* session;
 };
 
+// Extract the server's computer name from the Common Name of the leaf
+// certificate in the presented PEM chain. Windows sets this to the machine's
+// NetBIOS name / FQDN (e.g. "DESKTOP-ABC123"), which is the real server name.
+#if defined(FREERDP_VERSION_MAJOR) && FREERDP_VERSION_MAJOR >= 3
+int RdpSession::verifyX509Certificate(freerdp* instance, const BYTE* data, size_t length,
+                                      const char* hostname, UINT16 port, DWORD flags) {
+  fileLog((std::string("[RDP] verifyX509Certificate: server presented cert chain (") +
+           std::to_string(length) + " bytes)").c_str());
+
+  std::string pem((const char*)data, length);
+  std::string commonName;
+
+  // Walk every PEM block and use the first one we can parse (the leaf cert).
+  size_t pos = 0;
+  while (pos < pem.size()) {
+    size_t begin = pem.find("-----BEGIN CERTIFICATE-----", pos);
+    if (begin == std::string::npos) break;
+    size_t end = pem.find("-----END CERTIFICATE-----", begin);
+    if (end == std::string::npos) break;
+    end += strlen("-----END CERTIFICATE-----");
+
+    std::string block = pem.substr(begin, end - begin);
+    rdpCertificate* cert = freerdp_certificate_new_from_pem(block.c_str());
+    if (cert) {
+      size_t nameLen = 0;
+      char* cn = freerdp_certificate_get_common_name(cert, &nameLen);
+      if (cn && nameLen > 0) {
+        commonName.assign(cn, nameLen);
+        free(cn);
+      }
+      freerdp_certificate_free(cert);
+      if (!commonName.empty()) break;
+    }
+    pos = end;
+  }
+
+  if (!commonName.empty()) {
+    RdpSession* self = getSelf(instance->context);
+    if (self) {
+      self->setServerName(commonName);
+      fileLog((std::string("[RDP] verifyX509Certificate: detected server name '") + commonName + "'").c_str());
+    }
+  } else {
+    fileLog("[RDP] verifyX509Certificate: no common name found in server certificate");
+  }
+
+  // Accept the certificate for this session only (connection goes over loopback tunnel).
+  return 2;
+}
+#endif
+
 RdpSession::RdpSession(const std::string& host, int port,
                        int width, int height,
                        const std::string& username,
@@ -103,6 +155,10 @@ BOOL RdpSession::postConnectCallback(freerdp* instance) {
   self->context_->update->EndPaint = endPaint;
   self->context_->update->DesktopResize = desktopResize;
   fileLog(("[RDP] callbacks set: EndPaint=" + std::to_string((uintptr_t)self->context_->update->EndPaint) + ", DesktopResize=" + std::to_string((uintptr_t)self->context_->update->DesktopResize)).c_str());
+
+  if (!self->serverName_.empty() && self->listener_) {
+    self->listener_->onServerName(self->serverName_.c_str());
+  }
 
   fileLog("[RDP] postConnectCallback exiting with TRUE");
   return TRUE;
@@ -242,7 +298,11 @@ bool RdpSession::connect() {
   // This allows connecting to servers with self-signed certificates or smaller key sizes (e.g. 1024-bit).
   freerdp_settings_set_uint32(settings, FreeRDP_TlsSecLevel, 1);
 
-  // Keep ignoring cert since we're going over a loopback tunnel
+  // External certificate management: the VerifyX509Certificate callback is
+  // ALWAYS invoked (even with IgnoreCertificate set), so we can capture the
+  // server's computer name from the certificate Common Name. We accept every
+  // cert since the connection goes over a loopback tunnel.
+  freerdp_settings_set_bool(settings, FreeRDP_ExternalCertificateManagement, TRUE);
   freerdp_settings_set_bool(settings, FreeRDP_IgnoreCertificate, TRUE);
 
 #if defined(FREERDP_VERSION_MAJOR) && FREERDP_VERSION_MAJOR >= 3
@@ -286,8 +346,12 @@ bool RdpSession::connect() {
   freerdp_settings_set_uint32(settings, FreeRDP_DeviceScaleFactor, freerdpScale);
 #endif
 
+#if defined(FREERDP_VERSION_MAJOR) && FREERDP_VERSION_MAJOR >= 3
+  instance_->VerifyX509Certificate = verifyX509Certificate;
+#else
   instance_->VerifyCertificate = verifyCertificateCallback;
   instance_->VerifyChangedCertificate = verifyChangedCertificateCallback;
+#endif
   instance_->PostConnect = postConnectCallback;
 
   WLog_SetLogLevel(WLog_Get("com.freerdp.core.tls"), WLOG_TRACE);

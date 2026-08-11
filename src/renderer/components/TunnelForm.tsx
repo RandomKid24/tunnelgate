@@ -104,6 +104,30 @@ export function TunnelForm({ tunnel, onSubmit, onCancel }: Props) {
         />
       </Field>
 
+      {tunnel && (
+        <Field label="Detected Server Name">
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 12px',
+              fontSize: 13,
+              fontFamily: 'monospace',
+              background: 'var(--bg-tertiary)',
+              border: `1px solid ${tunnel.serverName ? 'rgba(16,185,129,0.4)' : 'var(--border-color)'}`,
+              borderRadius: 6,
+              color: tunnel.serverName ? 'var(--accent-green)' : 'var(--text-muted)',
+              minHeight: 32,
+            }}
+          >
+            {tunnel.serverName
+              ? tunnel.serverName
+              : 'Not detected yet — appears after the first successful connection'}
+          </div>
+        </Field>
+      )}
+
       <Field
         label={
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>

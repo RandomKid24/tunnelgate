@@ -3,6 +3,7 @@ import path from 'path';
 const isWin = process.platform === 'win32';
 const isLinux = process.platform === 'linux';
 import { writeLog } from './logger';
+import { getTunnels, setTunnels } from './store';
 
 interface RdpAddon {
   createSession(
@@ -234,6 +235,22 @@ export class RdpViewManager {
       const h = args[1];
       this.lastDimensions.set(tunnelId, { width: w, height: h });
       writeLog(tunnelId, 'RDP View', 'info', `RDP session resized to ${w}x${h}`);
+    } else if (type === 'serverName') {
+      writeLog(tunnelId, 'RDP View', 'info', `RDP server name detected: ${firstArg}`);
+      const name = (firstArg || '').trim();
+      if (name) {
+        try {
+          const tunnels = getTunnels();
+          const index = tunnels.findIndex((t) => t.id === tunnelId);
+          if (index !== -1 && tunnels[index].serverName !== name) {
+            tunnels[index] = { ...tunnels[index], serverName: name };
+            setTunnels(tunnels);
+            writeLog(tunnelId, 'RDP View', 'info', `Saved detected server name "${name}" to tunnel settings`);
+          }
+        } catch (err: any) {
+          writeLog(tunnelId, 'RDP View', 'error', `Failed to persist server name: ${err.message}`);
+        }
+      }
     } else {
       writeLog(tunnelId, 'RDP View', 'debug', `RDP session event [${type}]: ${firstArg}`);
     }

@@ -85,6 +85,17 @@ public:
     } catch (...) {}
   }
 
+  void onServerName(const char* name) override {
+    try {
+      std::string n(name);
+      errorCb_.BlockingCall([n](Napi::Env env, Napi::Function jsCallback) {
+        try {
+          jsCallback.Call({ Napi::String::New(env, "serverName"), Napi::String::New(env, n) });
+        } catch (...) {}
+      });
+    } catch (...) {}
+  }
+
 private:
   Napi::ThreadSafeFunction bitmapCb_;
   Napi::ThreadSafeFunction resizeCb_;

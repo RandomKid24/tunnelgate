@@ -113,6 +113,11 @@ export function TunnelCard({ tunnel, onConnect, onDisconnect, onEdit, onDelete, 
                 <span style={{ color: 'var(--accent-green)' }}> &middot; {formatDuration(duration)}</span>
               )}
             </div>
+            {tunnel.serverName && (
+              <div style={{ fontSize: 11, color: 'var(--accent-green)', fontFamily: 'monospace', marginTop: 1 }}>
+                {tunnel.serverName}
+              </div>
+            )}
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
               {tunnel.lastConnectedAt
                 ? `Last connected: ${getRelativeTime(tunnel.lastConnectedAt)}`

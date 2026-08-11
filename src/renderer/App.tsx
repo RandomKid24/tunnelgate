@@ -11,7 +11,7 @@ function App() {
   const [tab, setTab] = useState<Tab>('tunnels');
   const [viewingTunnel, setViewingTunnel] = useState<TunnelWithState | null>(null);
   const [selectedLogTunnelId, setSelectedLogTunnelId] = useState<string | undefined>(undefined);
-  const { tunnels, loading, add, update, remove, connect, disconnect } = useTunnels();
+  const { tunnels, loading, add, update, remove, connect, disconnect, reload } = useTunnels();
 
   const navItems: { id: Tab; label: string }[] = [
     { id: 'tunnels', label: 'Tunnels' },
@@ -22,7 +22,7 @@ function App() {
   if (viewingTunnel) {
     return (
       <div style={{ height: '100vh', background: '#000' }}>
-        <RdpView tunnel={viewingTunnel} onBack={() => setViewingTunnel(null)} />
+        <RdpView tunnel={viewingTunnel} onBack={() => setViewingTunnel(null)} onServerName={reload} />
       </div>
     );
   }

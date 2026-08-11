@@ -19,6 +19,7 @@ public:
   virtual void onResize(int w, int h) = 0;
   virtual void onDisconnect(const char* reason) = 0;
   virtual void onError(const char* msg) = 0;
+  virtual void onServerName(const char* name) = 0;
 };
 
 class RdpSession {
@@ -40,12 +41,16 @@ public:
   void sendPointerEvent(int flags, int x, int y);
   void sendKeyboardEvent(int flags, UINT16 code);
   void resize(int width, int height);
+  const std::string& serverName() const { return serverName_; }
+  void setServerName(const std::string& name) { serverName_ = name; }
 
 private:
   static BOOL beginPaint(rdpContext* ctx);
   static BOOL endPaint(rdpContext* ctx);
   static BOOL desktopResize(rdpContext* ctx);
   static BOOL postConnectCallback(freerdp* instance);
+  static int verifyX509Certificate(freerdp* instance, const BYTE* data, size_t length,
+                                   const char* hostname, UINT16 port, DWORD flags);
 
 
   freerdp* instance_ = nullptr;
@@ -60,6 +65,7 @@ private:
   UINT32 lastErrorCode_ = 0;
   std::string host_;
   std::string serverHostname_;
+  std::string serverName_;
   int port_;
   int width_;
   int height_;

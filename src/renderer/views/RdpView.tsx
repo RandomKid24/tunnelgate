@@ -5,6 +5,7 @@ import { TunnelWithState } from '../hooks/useTunnels';
 interface Props {
   tunnel: TunnelWithState | null;
   onBack: () => void;
+  onServerName?: (tunnelId: string, name: string) => void;
 }
 
 const DEFAULT_WIDTH = 1280;
@@ -52,7 +53,7 @@ function getFriendlyErrorMessage(msg: string): { title: string; desc: string } {
   };
 }
 
-export function RdpView({ tunnel, onBack }: Props) {
+export function RdpView({ tunnel, onBack, onServerName }: Props) {
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
   const [error, setError] = useState('');
   const [addonAvailable, setAddonAvailable] = useState<boolean | null>(null);
@@ -61,6 +62,7 @@ export function RdpView({ tunnel, onBack }: Props) {
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [updateError, setUpdateError] = useState('');
   const [showPasswordExpired, setShowPasswordExpired] = useState(false);
+  const [serverName, setServerName] = useState<string | undefined>(tunnel?.serverName);
   const [canvasWidth, setCanvasWidth] = useState(DEFAULT_WIDTH);
   const [canvasHeight, setCanvasHeight] = useState(DEFAULT_HEIGHT);
   const [connectingStep, setConnectingStep] = useState('Initializing secure tunnel...');
@@ -179,6 +181,14 @@ export function RdpView({ tunnel, onBack }: Props) {
 
     const unsub = window.cloudflareRdp.rdp.onEvent((tunnelId: string, type: string, ...args: any[]) => {
       if (tunnelId !== tunnel.id) return;
+      if (type === 'serverName') {
+        const name = String(args[0] || '').trim();
+        if (name) {
+          setServerName(name);
+          onServerName?.(tunnelId, name);
+        }
+        return;
+      }
       if (type === 'disconnected') { setStatus('disconnected'); connectedRef.current = false; }
       if (type === 'error') {
         const msg = args[0] || 'RDP connection error';
@@ -315,6 +325,19 @@ export function RdpView({ tunnel, onBack }: Props) {
       <div ref={toolbarRef} style={toolbarStyle}>
         <button onClick={handleBack} style={toolbarBtnStyle}>← Back</button>
         <span style={{ fontWeight: 600 }}>{tunnel.name}</span>
+        {serverName && (
+          <span style={{
+            fontSize: 11,
+            padding: '2px 8px',
+            borderRadius: 4,
+            background: 'rgba(255,255,255,0.12)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            color: 'var(--accent-green)',
+            fontFamily: 'monospace',
+          }}>
+            {serverName}
+          </span>
+        )}
         <span style={{ opacity: 0.6 }}>
           {status === 'connecting' ? 'Connecting...' :
            status === 'connected' ? `Connected (${tunnel.hostname})` :
@@ -341,7 +364,7 @@ export function RdpView({ tunnel, onBack }: Props) {
         }}>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Password Expired</div>
           <div style={{ marginBottom: 12, opacity: 0.9, fontSize: 12 }}>
-            The password for <strong>{tunnel.username}</strong> on <strong>{tunnel.hostname}</strong> has expired.
+            The password for <strong>{tunnel.username}</strong> on <strong>{serverName || tunnel.hostname}</strong> has expired.
             Enter the new password to reconnect.
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

@@ -126,6 +126,18 @@ npm run build:all     # builds C++ addon + compiles TypeScript + bundles Vite
 npm run dev           # Vite dev server + Electron with hot reload
 ```
 
+### PQ Error Monitoring
+
+TunnelGate initializes `pq-befu` in the Electron main process. Set these variables in the main-process launch environment:
+
+```sh
+PQ_API_KEY=your_pq_api_key
+PQ_BASE_URL=http://localhost:8000   # optional; this is the default
+NODE_ENV=development                # or production
+```
+
+Do not expose `PQ_API_KEY` through renderer or Vite environment variables. The renderer reports errors through the preload bridge as `window.pq`, while the API key stays in the main process.
+
 > **Windows note**: If `npm run dev` has a PowerShell escape issue, use separate terminals:
 > ```sh
 > # Terminal 1

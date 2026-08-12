@@ -2,6 +2,12 @@ import { TunnelConfig, TunnelRuntimeState, AppSettings, LogEntry, TunnelFormData
 
 declare global {
   interface Window {
+    pq?: {
+      captureError: (data?: Record<string, unknown>) => Promise<unknown>;
+      captureException: (err: unknown, data?: Record<string, unknown>) => Promise<unknown>;
+      sendFeedback: (data?: Record<string, unknown>) => Promise<unknown>;
+      createTicket: (data?: Record<string, unknown>) => Promise<unknown>;
+    };
     cloudflareRdp: {
       tunnels: {
         list: () => Promise<TunnelConfig[]>;

@@ -2,12 +2,19 @@ import './bootstrap';
 import { app, BrowserWindow, Tray, Menu, nativeImage, screen } from 'electron';
 import path from 'path';
 import fs from 'fs';
+import { PQClient } from 'pq-befu';
+import { pqElectronMain } from 'pq-befu/integrations/electron';
 import { TunnelManager } from './tunnelManager';
 import { RdpViewManager } from './rdpViewManager';
 import { registerIpcHandlers, sendStatusToRenderer, sendLogToRenderer } from './ipcHandlers';
 import { writeLog } from './logger';
 import { getSettings, getTunnels, store, getWindowBounds, setWindowBounds } from './store';
 
+const pq = new PQClient({
+  apiKey: process.env.PQ_API_KEY,
+  baseUrl: process.env.PQ_BASE_URL || 'http://localhost:8000',
+});
+pqElectronMain(pq, { environment: process.env.NODE_ENV || 'development' });
 
 process.on('uncaughtException', (error) => {
   writeLog('system', 'System', 'error', `Uncaught Exception: ${error.message}\n${error.stack || ''}`);

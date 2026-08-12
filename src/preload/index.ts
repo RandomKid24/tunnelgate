@@ -1,5 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import { pqElectronPreload } from 'pq-befu/integrations/electron';
 import { IPC_CHANNELS, TunnelFormData, TunnelConfig, AppSettings, TunnelRuntimeState, LogEntry, UpdateInfo } from '../shared/types';
+
+pqElectronPreload();
 
 const api = {
   tunnels: {

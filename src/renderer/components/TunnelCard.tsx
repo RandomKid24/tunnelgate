@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { TunnelWithState } from '../hooks/useTunnels';
+import { shortServerName } from '../lib/format';
 
 interface Props {
   tunnel: TunnelWithState;
@@ -10,6 +11,7 @@ interface Props {
   onDelete: (id: string) => void;
   onViewScreen?: () => void;
   onViewLogs?: () => void;
+  connectError?: string;
 }
 
 const statusColors: Record<string, string> = {
@@ -51,7 +53,7 @@ function formatDuration(seconds: number): string {
   return `${hrs}h ${remainMins}m ${secs}s`;
 }
 
-export function TunnelCard({ tunnel, onConnect, onDisconnect, onEdit, onDelete, onViewScreen, onViewLogs }: Props) {
+export function TunnelCard({ tunnel, onConnect, onDisconnect, onEdit, onDelete, onViewScreen, onViewLogs, connectError }: Props) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [duration, setDuration] = useState(0);
   const connectedAtRef = useRef<number | null>(null);
@@ -114,8 +116,11 @@ export function TunnelCard({ tunnel, onConnect, onDisconnect, onEdit, onDelete, 
               )}
             </div>
             {tunnel.serverName && (
-              <div style={{ fontSize: 11, color: 'var(--accent-green)', fontFamily: 'monospace', marginTop: 1 }}>
-                {tunnel.serverName}
+              <div
+                title={tunnel.serverName}
+                style={{ fontSize: 11, color: 'var(--accent-green)', fontFamily: 'monospace', marginTop: 1 }}
+              >
+                {shortServerName(tunnel.serverName)}
               </div>
             )}
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
@@ -148,6 +153,12 @@ export function TunnelCard({ tunnel, onConnect, onDisconnect, onEdit, onDelete, 
           </span>
         </div>
       </div>
+
+      {connectError && (
+        <div style={{ fontSize: 12, color: 'var(--accent-red)', marginBottom: 8, padding: '4px 8px', background: 'rgba(239,68,68,0.1)', borderRadius: 4, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+          Connection failed: {connectError}
+        </div>
+      )}
 
       {runtime.lastError && runtime.status === 'error' && (
         <div style={{ fontSize: 12, color: 'var(--accent-red)', marginBottom: 8, padding: '4px 8px', background: 'rgba(239,68,68,0.1)', borderRadius: 4, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>

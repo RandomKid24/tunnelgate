@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC_CHANNELS, TunnelFormData, TunnelConfig, AppSettings, TunnelRuntimeState, LogEntry } from '../shared/types';
+import { IPC_CHANNELS, TunnelFormData, TunnelConfig, AppSettings, TunnelRuntimeState, LogEntry, UpdateInfo } from '../shared/types';
 
 const api = {
   tunnels: {
@@ -66,6 +66,13 @@ const api = {
   app: {
     getVersion: (): Promise<string> =>
       ipcRenderer.invoke(IPC_CHANNELS.APP_GET_VERSION),
+
+    checkForUpdates: (): Promise<UpdateInfo | null> =>
+      ipcRenderer.invoke(IPC_CHANNELS.APP_CHECK_UPDATES),
+
+    openExternal: (url: string): void => {
+      ipcRenderer.invoke(IPC_CHANNELS.APP_OPEN_EXTERNAL, url);
+    },
 
     selectFile: (): Promise<string | null> =>
       ipcRenderer.invoke(IPC_CHANNELS.DIALOG_SELECT_FILE),

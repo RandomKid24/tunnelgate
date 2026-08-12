@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TunnelConfig } from '../../shared/types';
+import { shortServerName } from '../lib/format';
 
 interface Props {
   tunnel?: TunnelConfig;
@@ -107,6 +108,7 @@ export function TunnelForm({ tunnel, onSubmit, onCancel }: Props) {
       {tunnel && (
         <Field label="Detected Server Name">
           <div
+            title={tunnel.serverName || undefined}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -122,7 +124,7 @@ export function TunnelForm({ tunnel, onSubmit, onCancel }: Props) {
             }}
           >
             {tunnel.serverName
-              ? tunnel.serverName
+              ? shortServerName(tunnel.serverName)
               : 'Not detected yet — appears after the first successful connection'}
           </div>
         </Field>

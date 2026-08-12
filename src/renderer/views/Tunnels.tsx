@@ -6,6 +6,7 @@ import { TunnelWithState } from '../hooks/useTunnels';
 interface Props {
   tunnels: TunnelWithState[];
   loading: boolean;
+  errors: Record<string, string>;
   onAdd: (data: { name: string; hostname: string; port: number; username: string; password: string; rememberAfterSession: boolean }) => void;
   onUpdate: (tunnel: any) => void;
   onDelete: (id: string) => void;
@@ -15,7 +16,7 @@ interface Props {
   onViewLogs: (tunnelId: string) => void;
 }
 
-export function Tunnels({ tunnels, loading, onAdd, onUpdate, onDelete, onConnect, onDisconnect, onViewScreen, onViewLogs }: Props) {
+export function Tunnels({ tunnels, loading, errors, onAdd, onUpdate, onDelete, onConnect, onDisconnect, onViewScreen, onViewLogs }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [editingTunnel, setEditingTunnel] = useState<TunnelWithState | null>(null);
 
@@ -111,6 +112,7 @@ export function Tunnels({ tunnels, loading, onAdd, onUpdate, onDelete, onConnect
               onDelete={onDelete}
               onViewScreen={() => onViewScreen(tunnel)}
               onViewLogs={() => onViewLogs(tunnel.id)}
+              connectError={errors[tunnel.id]}
             />
             {showForm && editingTunnel?.id === tunnel.id && (
               <div style={{ padding: 20, background: 'var(--bg-card)', border: '1px solid var(--accent-blue)', borderRadius: 8, marginTop: -4 }}>

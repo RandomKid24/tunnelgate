@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { RdpCanvas } from '../components/RdpCanvas';
 import { TunnelWithState } from '../hooks/useTunnels';
+import { shortServerName } from '../lib/format';
 
 interface Props {
   tunnel: TunnelWithState | null;
@@ -39,6 +40,12 @@ function getFriendlyErrorMessage(msg: string): { title: string; desc: string } {
     return {
       title: 'Password Expired (Error 131087)',
       desc: 'Your Windows user password has expired and must be changed before you can log in.',
+    };
+  }
+  if (msg.includes('code=131080') || /tls.*(failed|connect)/i.test(msg)) {
+    return {
+      title: 'TLS Handshake Failed (Error 131080)',
+      desc: 'Could not establish a secure connection to the remote computer. The server may not support NLA/TLS, or this tunnel may point at a service that is not Remote Desktop. Please check the tunnel hostname and port, and confirm the computer allows Remote Desktop connections.',
     };
   }
   if (msg.includes('Cannot find module') && msg.includes('rdp_addon.node')) {
@@ -326,16 +333,19 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
         <button onClick={handleBack} style={toolbarBtnStyle}>← Back</button>
         <span style={{ fontWeight: 600 }}>{tunnel.name}</span>
         {serverName && (
-          <span style={{
-            fontSize: 11,
-            padding: '2px 8px',
-            borderRadius: 4,
-            background: 'rgba(255,255,255,0.12)',
-            border: '1px solid rgba(255,255,255,0.2)',
-            color: 'var(--accent-green)',
-            fontFamily: 'monospace',
-          }}>
-            {serverName}
+          <span
+            title={serverName}
+            style={{
+              fontSize: 11,
+              padding: '2px 8px',
+              borderRadius: 4,
+              background: 'rgba(255,255,255,0.12)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              color: 'var(--accent-green)',
+              fontFamily: 'monospace',
+            }}
+          >
+            {shortServerName(serverName)}
           </span>
         )}
         <span style={{ opacity: 0.6 }}>

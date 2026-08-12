@@ -6,7 +6,7 @@ import { TunnelManager } from './tunnelManager';
 import { RdpViewManager } from './rdpViewManager';
 import { registerIpcHandlers, sendStatusToRenderer, sendLogToRenderer } from './ipcHandlers';
 import { writeLog } from './logger';
-import { getSettings, getTunnels, store } from './store';
+import { getSettings, getTunnels, store, getWindowBounds, setWindowBounds } from './store';
 
 
 process.on('uncaughtException', (error) => {
@@ -133,12 +133,25 @@ function createTray(): void {
   setInterval(updateTrayMenu, 2000);
 }
 
+function getValidWindowBounds(): { x: number; y: number; width: number; height: number } | null {
+  const saved = getWindowBounds();
+  if (!saved) return null;
+
+  const visibleOnSomeDisplay = screen.getAllDisplays().some((display) => {
+    const area = display.workArea;
+    const right = saved.x + saved.width;
+    const bottom = saved.y + saved.height;
+    return right > area.x && saved.x < area.x + area.width && bottom > area.y && saved.y < area.y + area.height;
+  });
+
+  if (!visibleOnSomeDisplay) return null;
+  return saved;
+}
+
 function createMainWindow(): void {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
-
-  mainWindow = new BrowserWindow({
-    width: Math.min(1000, width),
-    height: Math.min(700, height),
+  const bounds = getValidWindowBounds();
+  const windowOptions: Electron.BrowserWindowConstructorOptions = {
     minWidth: 900,
     minHeight: 600,
     title: 'TunnelGate',
@@ -150,7 +163,19 @@ function createMainWindow(): void {
       nodeIntegration: false,
       sandbox: false,
     },
-  });
+  };
+
+  if (bounds) {
+    windowOptions.x = bounds.x;
+    windowOptions.y = bounds.y;
+    windowOptions.width = bounds.width;
+    windowOptions.height = bounds.height;
+  } else {
+    windowOptions.width = Math.min(1000, width);
+    windowOptions.height = Math.min(700, height);
+  }
+
+  mainWindow = new BrowserWindow(windowOptions);
 
   rdpViewManager?.setWindow(mainWindow);
 
@@ -168,6 +193,18 @@ function createMainWindow(): void {
     }
   });
 
+  let saveBoundsTimer: NodeJS.Timeout | null = null;
+  const saveWindowBounds = () => {
+    if (saveBoundsTimer) clearTimeout(saveBoundsTimer);
+    saveBoundsTimer = setTimeout(() => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      const b = mainWindow.getNormalBounds();
+      setWindowBounds({ x: b.x, y: b.y, width: b.width, height: b.height });
+    }, 300);
+  };
+  mainWindow.on('resize', saveWindowBounds);
+  mainWindow.on('move', saveWindowBounds);
+
   mainWindow.on('closed', () => {
     mainWindow = null;
     rdpViewManager?.setWindow(null);
@@ -183,38 +220,48 @@ function showMainWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
-  if (process.platform === 'win32') {
-    app.setAppUserModelId('com.tunnelgate.app');
-  }
-  createTray();
-  createMainWindow();
+const gotTheLock = app.requestSingleInstanceLock();
 
-  writeLog('system', 'System', 'info', 'TunnelGate started');
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    showMainWindow();
+  });
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow();
-    } else {
-      showMainWindow();
+  app.whenReady().then(() => {
+    if (process.platform === 'win32') {
+      app.setAppUserModelId('com.tunnelgate.app');
+    }
+    createTray();
+    createMainWindow();
+
+    writeLog('system', 'System', 'info', 'TunnelGate started');
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createMainWindow();
+      } else {
+        showMainWindow();
+      }
+    });
+  });
+
+  app.on('before-quit', () => {
+    isQuitting = true;
+    tunnelManager?.disconnectAll();
+    rdpViewManager?.disconnectAll();
+  });
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      if (!isQuitting) return;
+      app.quit();
     }
   });
-});
 
-app.on('before-quit', () => {
-  isQuitting = true;
-  tunnelManager?.disconnectAll();
-  rdpViewManager?.disconnectAll();
-});
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    if (!isQuitting) return;
-    app.quit();
-  }
-});
-
-app.on('will-quit', () => {
-  tunnelManager?.disconnectAll();
-  rdpViewManager?.disconnectAll();
-});
+  app.on('will-quit', () => {
+    tunnelManager?.disconnectAll();
+    rdpViewManager?.disconnectAll();
+  });
+}

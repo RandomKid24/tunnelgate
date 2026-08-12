@@ -1,6 +1,6 @@
-import { ipcMain, dialog, app, BrowserWindow } from 'electron';
+import { ipcMain, dialog, app, BrowserWindow, shell } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
-import { IPC_CHANNELS, TunnelConfig, TunnelFormData, AppSettings, LogEntry, RdpViewState } from '../shared/types';
+import { IPC_CHANNELS, TunnelConfig, TunnelFormData, AppSettings, LogEntry, RdpViewState, UpdateInfo } from '../shared/types';
 import { getTunnels, setTunnels, getSettings, setSettings } from './store';
 import { credentialStore } from './credentialStore';
 import { TunnelManager } from './tunnelManager';
@@ -8,6 +8,55 @@ import { RdpViewManager } from './rdpViewManager';
 import { getCombinedLogs, writeLog, getLogs } from './logger';
 
 const isWin = process.platform === 'win32';
+
+const GH_REPO = 'RandomKid24/cloudflareRDB-gui';
+
+function fetchLatestRelease(): Promise<{ tag_name: string; html_url: string } | null> {
+  return new Promise((resolve) => {
+    const req = require('https').get(
+      {
+        hostname: 'api.github.com',
+        path: `/repos/${GH_REPO}/releases/latest`,
+        headers: { 'User-Agent': 'TunnelGate', Accept: 'application/vnd.github+json' },
+        timeout: 10000,
+      },
+      (res: any) => {
+        let body = '';
+        res.on('data', (chunk: Buffer) => (body += chunk.toString()));
+        res.on('end', () => {
+          try {
+            const data = JSON.parse(body);
+            if (data && data.tag_name) resolve({ tag_name: data.tag_name, html_url: data.html_url });
+            else resolve(null);
+          } catch {
+            resolve(null);
+          }
+        });
+      },
+    );
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(null);
+    });
+  });
+}
+
+function parseVersion(v: string): number[] {
+  const clean = String(v || '').trim().replace(/^v/i, '');
+  const parts = clean.split('.');
+  return [0, 1, 2].map((i) => parseInt(parts[i], 10) || 0);
+}
+
+function isNewerVersion(current: string, latest: string): boolean {
+  const a = parseVersion(current);
+  const b = parseVersion(latest);
+  for (let i = 0; i < 3; i++) {
+    if (b[i] > a[i]) return true;
+    if (b[i] < a[i]) return false;
+  }
+  return false;
+}
 
 export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager?: RdpViewManager): void {
   ipcMain.handle(IPC_CHANNELS.TUNNELS_LIST, () => {
@@ -138,6 +187,25 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
 
   ipcMain.handle(IPC_CHANNELS.APP_GET_VERSION, () => {
     return app.getVersion();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.APP_CHECK_UPDATES, async (): Promise<UpdateInfo | null> => {
+    const release = await fetchLatestRelease();
+    if (!release) return null;
+    const currentVersion = app.getVersion();
+    const latestVersion = release.tag_name.replace(/^v/i, '');
+    return {
+      currentVersion,
+      latestVersion,
+      url: release.html_url,
+      hasUpdate: isNewerVersion(currentVersion, latestVersion),
+    };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.APP_OPEN_EXTERNAL, (_event, url: string) => {
+    if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+      shell.openExternal(url);
+    }
   });
 
   ipcMain.handle(IPC_CHANNELS.DIALOG_SELECT_FILE, async () => {

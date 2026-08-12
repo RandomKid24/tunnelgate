@@ -8,6 +8,7 @@ export interface TunnelWithState extends TunnelConfig {
 export function useTunnels() {
   const [tunnels, setTunnels] = useState<TunnelWithState[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const stateMap = useRef<Map<string, TunnelRuntimeState>>(new Map());
 
   const loadTunnels = useCallback(async () => {
@@ -35,6 +36,14 @@ export function useTunnels() {
   useEffect(() => {
     const unsub = window.cloudflareRdp.tunnels.onStatusChange((state) => {
       stateMap.current.set(state.tunnelId, state);
+      if (state.status === 'connected') {
+        setErrors((prev) => {
+          if (!(state.tunnelId in prev)) return prev;
+          const next = { ...prev };
+          delete next[state.tunnelId];
+          return next;
+        });
+      }
       setTunnels((prev) =>
         prev.map((t) =>
           t.id === state.tunnelId
@@ -82,10 +91,16 @@ export function useTunnels() {
   }, []);
 
   const connect = useCallback(async (tunnelId: string) => {
+    setErrors((prev) => {
+      if (!(tunnelId in prev)) return prev;
+      const next = { ...prev };
+      delete next[tunnelId];
+      return next;
+    });
     try {
       await window.cloudflareRdp.tunnels.connect(tunnelId);
     } catch (err: any) {
-      alert(err.message || 'Connection failed');
+      setErrors((prev) => ({ ...prev, [tunnelId]: err.message || 'Connection failed' }));
     }
   }, []);
 
@@ -93,5 +108,5 @@ export function useTunnels() {
     await window.cloudflareRdp.tunnels.disconnect(tunnelId);
   }, []);
 
-  return { tunnels, loading, add, update, remove, connect, disconnect, reload: loadTunnels };
+  return { tunnels, loading, errors, add, update, remove, connect, disconnect, reload: loadTunnels };
 }

@@ -63,6 +63,8 @@ export const IPC_CHANNELS = {
   SETTINGS_GET: 'settings:get',
   SETTINGS_SET: 'settings:set',
   APP_GET_VERSION: 'app:get-version',
+  APP_CHECK_UPDATES: 'app:check-updates',
+  APP_OPEN_EXTERNAL: 'app:open-external',
   DIALOG_SELECT_FILE: 'dialog:select-file',
   CHECK_CLOUDFLARED: 'check:cloudflared',
   RDP_VIEW_CONNECT: 'rdp:view-connect',
@@ -85,4 +87,11 @@ export interface RdpViewState {
   error?: string;
   width?: number;
   height?: number;
+}
+
+export interface UpdateInfo {
+  currentVersion: string;
+  latestVersion: string;
+  url: string;
+  hasUpdate: boolean;
 }

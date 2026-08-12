@@ -1,4 +1,4 @@
-import { TunnelConfig, TunnelRuntimeState, AppSettings, LogEntry, TunnelFormData } from '../shared/types';
+import { TunnelConfig, TunnelRuntimeState, AppSettings, LogEntry, TunnelFormData, UpdateInfo } from '../shared/types';
 
 declare global {
   interface Window {
@@ -23,6 +23,8 @@ declare global {
       };
       app: {
         getVersion: () => Promise<string>;
+        checkForUpdates: () => Promise<UpdateInfo | null>;
+        openExternal: (url: string) => void;
         selectFile: () => Promise<string | null>;
         checkCloudflared: () => Promise<{ found: boolean; path: string | null }>;
       };

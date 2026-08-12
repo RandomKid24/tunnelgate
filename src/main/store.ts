@@ -1,9 +1,17 @@
 import Store from 'electron-store';
 import { TunnelConfig, AppSettings } from '../shared/types';
 
+export interface WindowBounds {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+}
+
 interface Schema {
   tunnels: TunnelConfig[];
   settings: AppSettings;
+  windowBounds: WindowBounds;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -40,10 +48,21 @@ export const store = new Store<Schema>({
       type: 'object',
       default: DEFAULT_SETTINGS,
     },
+    windowBounds: {
+      type: 'object',
+      properties: {
+        x: { type: 'number' },
+        y: { type: 'number' },
+        width: { type: 'number' },
+        height: { type: 'number' },
+      },
+      default: {},
+    },
   },
   defaults: {
     tunnels: [],
     settings: DEFAULT_SETTINGS,
+    windowBounds: {},
   },
 });
 
@@ -53,6 +72,16 @@ export function getTunnels(): TunnelConfig[] {
 
 export function setTunnels(tunnels: TunnelConfig[]): void {
   store.set('tunnels', tunnels);
+}
+
+export function getWindowBounds(): { x: number; y: number; width: number; height: number } | undefined {
+  const b = store.get('windowBounds') as WindowBounds | undefined;
+  if (!b || !b.width || !b.height || b.x === undefined || b.y === undefined) return undefined;
+  return { x: b.x, y: b.y, width: b.width, height: b.height };
+}
+
+export function setWindowBounds(bounds: WindowBounds): void {
+  store.set('windowBounds', bounds);
 }
 
 export function getSettings(): AppSettings {

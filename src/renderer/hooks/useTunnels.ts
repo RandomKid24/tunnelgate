@@ -91,6 +91,8 @@ export function useTunnels() {
     setTunnels((prev) => prev.filter((t) => t.id !== tunnelId));
   }, []);
 
+  const [connectingTunnels, setConnectingTunnels] = useState<Set<string>>(new Set());
+
   const connect = useCallback(async (tunnelId: string) => {
     setErrors((prev) => {
       if (!(tunnelId in prev)) return prev;
@@ -98,10 +100,38 @@ export function useTunnels() {
       delete next[tunnelId];
       return next;
     });
+    setConnectingTunnels((prev) => new Set(prev).add(tunnelId));
+    setTunnels((prev) =>
+      prev.map((t) =>
+        t.id === tunnelId
+          ? {
+              ...t,
+              runtime: {
+                ...t.runtime,
+                status: 'connecting',
+                capturedOutput: 'Verifying Wi-Fi network and starting tunnel...',
+              },
+            }
+          : t
+      )
+    );
     try {
       await window.cloudflareRdp.tunnels.connect(tunnelId);
     } catch (err: any) {
       setErrors((prev) => ({ ...prev, [tunnelId]: formatIpcError(err) }));
+      setTunnels((prev) =>
+        prev.map((t) =>
+          t.id === tunnelId && t.runtime.status === 'connecting'
+            ? { ...t, runtime: { ...t.runtime, status: 'disconnected', capturedOutput: undefined } }
+            : t
+        )
+      );
+    } finally {
+      setConnectingTunnels((prev) => {
+        const next = new Set(prev);
+        next.delete(tunnelId);
+        return next;
+      });
     }
   }, []);
 
@@ -109,5 +139,5 @@ export function useTunnels() {
     await window.cloudflareRdp.tunnels.disconnect(tunnelId);
   }, []);
 
-  return { tunnels, loading, errors, add, update, remove, connect, disconnect, reload: loadTunnels };
+  return { tunnels, loading, errors, connectingTunnels, add, update, remove, connect, disconnect, reload: loadTunnels };
 }

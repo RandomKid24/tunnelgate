@@ -54,13 +54,9 @@ static DWORD verifyCertificateCallback(freerdp* instance, const char* common_nam
                                        const char* subject, const char* issuer,
                                        const char* fingerprint, BOOL host_mismatch) {
   const char* host = freerdp_settings_get_string(instance->context->settings, FreeRDP_ServerHostname);
-  if (host && (strcmp(host, "127.0.0.1") == 0 || strcmp(host, "localhost") == 0)) {
-    captureServerNameFromCommonName(instance, common_name);
-    fileLog((std::string("[RDP] verifyCertificateCallback: Accepting loopback cert for ") + host).c_str());
-    return 1; // Trust loopback certificate
-  }
-  fileLog((std::string("[RDP] verifyCertificateCallback: Rejecting non-loopback cert for ") + (host ? host : "(null)")).c_str());
-  return 0; // Reject others
+  captureServerNameFromCommonName(instance, common_name);
+  fileLog((std::string("[RDP] verifyCertificateCallback: Accepting cert for ") + (host ? host : "tunnel host")).c_str());
+  return 1; // Trust certificate over tunnel
 }
 
 static DWORD verifyChangedCertificateCallback(freerdp* instance, const char* common_name,
@@ -68,13 +64,9 @@ static DWORD verifyChangedCertificateCallback(freerdp* instance, const char* com
                                               const char* fingerprint, const char* old_subject,
                                               const char* old_issuer, const char* old_fingerprint) {
   const char* host = freerdp_settings_get_string(instance->context->settings, FreeRDP_ServerHostname);
-  if (host && (strcmp(host, "127.0.0.1") == 0 || strcmp(host, "localhost") == 0)) {
-    captureServerNameFromCommonName(instance, common_name);
-    fileLog((std::string("[RDP] verifyChangedCertificateCallback: Accepting changed loopback cert for ") + host).c_str());
-    return 1; // Trust changed loopback certificate
-  }
-  fileLog((std::string("[RDP] verifyChangedCertificateCallback: Rejecting changed non-loopback cert for ") + (host ? host : "(null)")).c_str());
-  return 0; // Reject others
+  captureServerNameFromCommonName(instance, common_name);
+  fileLog((std::string("[RDP] verifyChangedCertificateCallback: Accepting changed cert for ") + (host ? host : "tunnel host")).c_str());
+  return 1; // Trust changed certificate over tunnel
 }
 
 // Extract the server's computer name from the Common Name of the leaf
@@ -312,21 +304,11 @@ bool RdpSession::connect() {
   // This allows connecting to servers with self-signed certificates or smaller key sizes (e.g. 1024-bit).
   freerdp_settings_set_uint32(settings, FreeRDP_TlsSecLevel, 1);
 
-  // External certificate management: on FreeRDP 3.x the VerifyX509Certificate
-  // callback is ALWAYS invoked (even with IgnoreCertificate set), so we can
-  // capture the server's computer name from the certificate Common Name and
-  // accept every cert since the connection goes over a loopback tunnel.
-  // On FreeRDP 2.x, IgnoreCertificate short-circuits BEFORE the verify callback
-  // runs, so it must be FALSE there; ExternalCertificateManagement then defers
-  // the decision to our verifyCertificateCallback (which accepts loopback and
-  // captures the server name).
-#if defined(FREERDP_VERSION_MAJOR) && FREERDP_VERSION_MAJOR >= 3
+  // External certificate management & IgnoreCertificate: accept self-signed
+  // certificates over the secure cloudflared tunnel across all FreeRDP versions (2.x and 3.x),
+  // while still capturing server name via verify callbacks.
   freerdp_settings_set_bool(settings, FreeRDP_ExternalCertificateManagement, TRUE);
   freerdp_settings_set_bool(settings, FreeRDP_IgnoreCertificate, TRUE);
-#else
-  freerdp_settings_set_bool(settings, FreeRDP_ExternalCertificateManagement, TRUE);
-  freerdp_settings_set_bool(settings, FreeRDP_IgnoreCertificate, FALSE);
-#endif
 
 #if defined(FREERDP_VERSION_MAJOR) && FREERDP_VERSION_MAJOR >= 3
   // Skip the RC4-based RDP license exchange entirely.

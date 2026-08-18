@@ -1,6 +1,6 @@
 import { ipcMain, dialog, app, BrowserWindow, shell } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
-import { IPC_CHANNELS, TunnelConfig, TunnelFormData, AppSettings, LogEntry, RdpViewState, UpdateInfo, HrmsSession } from '../shared/types';
+import { IPC_CHANNELS, TunnelConfig, TunnelFormData, AppSettings, LogEntry, RdpViewState, UpdateInfo, HrmsSession, WifiStatusResult } from '../shared/types';
 import { getTunnels, setTunnels, getSettings, setSettings, getAuthSession, setAuthSession, StoredAuthSession } from './store';
 import { credentialStore } from './credentialStore';
 import { TunnelManager } from './tunnelManager';
@@ -157,6 +157,105 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
   ipcMain.handle(IPC_CHANNELS.AUTH_GET_SESSION, async (): Promise<HrmsSession | null> => {
     const session = getAuthSession();
     return session ? toPublicSession(session) : null;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.WIFI_GET_STATUS, async (_event, bypassCache?: boolean): Promise<WifiStatusResult> => {
+    if (bypassCache) {
+      wifiCache = null;
+    }
+    const session = getAuthSession();
+    const detection = await detectWifi();
+
+    if (detection.status === 'permission-denied') {
+      return {
+        status: 'permission-denied',
+        ssid: null,
+        bssid: null,
+        allowed: false,
+        matchedNetwork: null,
+        error: process.platform === 'darwin'
+          ? 'Location access is required to read your Wi-Fi network name on macOS.'
+          : 'Your operating system is hiding your Wi-Fi network name.',
+        platform: process.platform,
+      };
+    }
+
+    if (detection.status === 'unavailable' || !detection.wifi?.ssid) {
+      return {
+        status: 'unavailable',
+        ssid: null,
+        bssid: null,
+        allowed: false,
+        matchedNetwork: null,
+        error: 'No active Wi-Fi connection detected.',
+        platform: process.platform,
+      };
+    }
+
+    const wifi = detection.wifi;
+    if (!session) {
+      return {
+        status: 'ok',
+        ssid: wifi.ssid,
+        bssid: wifi.bssid,
+        allowed: false,
+        matchedNetwork: null,
+        error: 'Not logged in to HRMS.',
+        platform: process.platform,
+      };
+    }
+
+    let token: string;
+    try {
+      token = credentialStore.decrypt(session.encryptedToken);
+    } catch {
+      return {
+        status: 'ok',
+        ssid: wifi.ssid,
+        bssid: wifi.bssid,
+        allowed: false,
+        matchedNetwork: null,
+        error: 'Session expired. Please log in again.',
+        platform: process.platform,
+      };
+    }
+
+    const cacheKey = `${wifi.ssid}|${wifi.bssid ?? ''}`;
+    if (!bypassCache && wifiCache && wifiCache.key === cacheKey && Date.now() - wifiCache.ts < WIFI_CACHE_TTL_MS) {
+      return {
+        status: 'ok',
+        ssid: wifi.ssid,
+        bssid: wifi.bssid,
+        allowed: wifiCache.allowed,
+        matchedNetwork: null,
+        error: wifiCache.error,
+        platform: process.platform,
+      };
+    }
+
+    try {
+      const result = await hrmsValidateWifi(session.baseUrl, token, wifi.ssid, wifi.bssid);
+      wifiCache = { key: cacheKey, allowed: result.allowed, error: result.error, ts: Date.now() };
+      return {
+        status: 'ok',
+        ssid: wifi.ssid,
+        bssid: wifi.bssid,
+        allowed: result.allowed,
+        matchedNetwork: result.matchedNetwork,
+        error: result.error,
+        platform: process.platform,
+      };
+    } catch (err: any) {
+      return {
+        status: 'ok',
+        ssid: wifi.ssid,
+        bssid: wifi.bssid,
+        allowed: false,
+        matchedNetwork: null,
+        error: `Unable to verify network: ${err.message}`,
+        platform: process.platform,
+      };
+    }
   });
 
   ipcMain.handle(IPC_CHANNELS.TUNNELS_LIST, () => {

@@ -89,7 +89,18 @@ export const IPC_CHANNELS = {
   AUTH_LOGIN: 'auth:login',
   AUTH_LOGOUT: 'auth:logout',
   AUTH_GET_SESSION: 'auth:get-session',
+  WIFI_GET_STATUS: 'wifi:get-status',
 } as const;
+
+export interface WifiStatusResult {
+  status: 'ok' | 'unavailable' | 'permission-denied';
+  ssid: string | null;
+  bssid: string | null;
+  allowed: boolean;
+  matchedNetwork: string | null;
+  error: string | null;
+  platform: string;
+}
 
 export type RdpViewStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -107,3 +118,4 @@ export interface UpdateInfo {
   url: string;
   hasUpdate: boolean;
 }
+

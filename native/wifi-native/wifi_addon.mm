@@ -7,14 +7,28 @@
 @interface TGLocationAuthWaiter : NSObject <CLLocationManagerDelegate>
 @property(nonatomic, assign) BOOL resolved;
 @property(nonatomic, assign) CLAuthorizationStatus finalStatus;
+@property(nonatomic, strong) dispatch_semaphore_t semaphore;
+@property(nonatomic, strong) CLLocationManager *manager;
 @end
 
 @implementation TGLocationAuthWaiter
+- (instancetype)init {
+  self = [super init];
+  if (self) {
+    _resolved = NO;
+    _finalStatus = kCLAuthorizationStatusNotDetermined;
+  }
+  return self;
+}
+
 - (void)locationManagerDidChangeAuthorization:(CLLocationManager *)manager {
   CLAuthorizationStatus status = manager.authorizationStatus;
   if (status == kCLAuthorizationStatusNotDetermined) return;
   self.finalStatus = status;
   self.resolved = YES;
+  if (self.semaphore) {
+    dispatch_semaphore_signal(self.semaphore);
+  }
 }
 @end
 
@@ -24,37 +38,56 @@ static BOOL IsAuthorized(CLAuthorizationStatus status) {
          status != kCLAuthorizationStatusRestricted;
 }
 
-// Ensures location authorization is resolved (requesting it, and pumping a
-// run loop up to timeoutSeconds if it's not yet determined — this is what
-// actually surfaces the system consent dialog to a first-time user). Must be
-// called off the main JS thread since it can block for the full timeout.
+// Ensures location authorization is resolved on the main thread (requesting it
+// and waiting on a semaphore if it's not yet determined). Must be called off
+// the main JS thread since waiting on the semaphore would block the main thread.
 static BOOL EnsureLocationAuthorized(double timeoutSeconds) {
   if (![CLLocationManager locationServicesEnabled]) {
     return NO;
   }
 
-  CLLocationManager *manager = [[CLLocationManager alloc] init];
-  TGLocationAuthWaiter *waiter = [[TGLocationAuthWaiter alloc] init];
-  manager.delegate = waiter;
+  __block CLAuthorizationStatus initialStatus = kCLAuthorizationStatusNotDetermined;
+  __block TGLocationAuthWaiter *waiter = nil;
+  __block dispatch_semaphore_t sem = NULL;
 
-  CLAuthorizationStatus status = manager.authorizationStatus;
-  if (IsAuthorized(status)) {
+  dispatch_sync(dispatch_get_main_queue(), ^{
+    CLLocationManager *manager = [[CLLocationManager alloc] init];
+    initialStatus = manager.authorizationStatus;
+
+    if (initialStatus == kCLAuthorizationStatusNotDetermined) {
+      sem = dispatch_semaphore_create(0);
+      waiter = [[TGLocationAuthWaiter alloc] init];
+      waiter.semaphore = sem;
+      waiter.manager = manager;
+      manager.delegate = waiter;
+      [manager requestWhenInUseAuthorization];
+    }
+  });
+
+  if (IsAuthorized(initialStatus)) {
     return YES;
   }
-  if (status == kCLAuthorizationStatusDenied || status == kCLAuthorizationStatusRestricted) {
+  if (initialStatus == kCLAuthorizationStatusDenied || initialStatus == kCLAuthorizationStatusRestricted) {
     return NO;
   }
 
-  waiter.resolved = NO;
-  [manager requestWhenInUseAuthorization];
+  if (sem) {
+    dispatch_time_t deadline = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(timeoutSeconds * NSEC_PER_SEC));
+    dispatch_semaphore_wait(sem, deadline);
 
-  NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:timeoutSeconds];
-  while (!waiter.resolved && [deadline timeIntervalSinceNow] > 0) {
-    [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
-                              beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.2]];
+    BOOL success = waiter.resolved && IsAuthorized(waiter.finalStatus);
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+      if (waiter && waiter.manager) {
+        waiter.manager.delegate = nil;
+        waiter.manager = nil;
+      }
+    });
+
+    return success;
   }
 
-  return waiter.resolved && IsAuthorized(waiter.finalStatus);
+  return NO;
 }
 
 // Runs off the main JS thread (Execute), so a slow/never-answered system

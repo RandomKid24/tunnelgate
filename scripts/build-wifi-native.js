@@ -40,11 +40,13 @@ if (!fs.existsSync(addonOutPath)) {
 spawnSync('codesign', ['--force', '--sign', '-', addonOutPath], { stdio: 'ignore' });
 console.log('[wifi-native] Signed', addonOutPath);
 
-// Mirror into dev Electron's own Resources so `npm run dev` (which runs the
-// raw node_modules/electron binary) can find it at the same relative path
-// wifiDetector.ts expects in packaged mode, for local testing consistency.
-// (In dev mode wifiDetector.ts actually reads directly from
-// native/wifi-native/build/Release, so this mirror isn't required — kept
-// here only for parity with build-native.js's existing pattern.)
+// Ensure dev Electron.app Info.plist has Location usage description keys;
+// otherwise macOS silently drops CoreLocation authorization requests in dev mode.
+const devPlistPath = path.resolve(__dirname, '..', 'node_modules', 'electron', 'dist', 'Electron.app', 'Contents', 'Info.plist');
+if (fs.existsSync(devPlistPath)) {
+  const desc = 'TunnelGate reads your current WiFi network name to verify you are connecting from an approved office network.';
+  spawnSync('/usr/libexec/PlistBuddy', ['-c', `Add :NSLocationUsageDescription string '${desc}'`, devPlistPath], { stdio: 'ignore' });
+  spawnSync('/usr/libexec/PlistBuddy', ['-c', `Add :NSLocationWhenInUseUsageDescription string '${desc}'`, devPlistPath], { stdio: 'ignore' });
+}
 
 console.log('[wifi-native] Build complete.');

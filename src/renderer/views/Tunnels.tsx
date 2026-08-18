@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { TunnelCard } from '../components/TunnelCard';
 import { TunnelForm } from '../components/TunnelForm';
+import { WifiStatusBar } from '../components/WifiStatusBar';
 import { TunnelWithState } from '../hooks/useTunnels';
 
 const ACTIVE_STATUSES = new Set(['connected', 'connecting', 'reconnecting']);
@@ -202,8 +203,8 @@ export function Tunnels({ tunnels, loading, errors, onAdd, onUpdate, onDelete, o
 
   return (
     <div style={{ padding: 24, height: '100%', overflowY: 'auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Tunnels</h1>
           {connectedCount > 0 && (
             <span
@@ -223,6 +224,7 @@ export function Tunnels({ tunnels, loading, errors, onAdd, onUpdate, onDelete, o
               {connectedCount} connected
             </span>
           )}
+          <WifiStatusBar />
         </div>
         {!showForm && (
           <button

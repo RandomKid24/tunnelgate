@@ -173,12 +173,40 @@ export function TunnelCard({ tunnel, onConnect, onDisconnect, onEdit, onDelete, 
       ) : null}
 
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-        {isActive ? (
+        {runtime.status === 'connecting' || runtime.status === 'reconnecting' ? (
+          <>
+            <ActionButton
+              onClick={() => {}}
+              color="var(--accent-amber)"
+              disabled
+              icon={
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ animation: 'spin 1s linear infinite' }}
+                >
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                </svg>
+              }
+            >
+              Connecting...
+            </ActionButton>
+            <ActionButton onClick={() => onDisconnect(tunnel.id)} color="var(--accent-red)" variant="secondary" icon={DisconnectIcon}>
+              Cancel
+            </ActionButton>
+          </>
+        ) : runtime.status === 'connected' ? (
           <>
             <ActionButton onClick={() => onDisconnect(tunnel.id)} color="var(--accent-red)" icon={DisconnectIcon}>
               Disconnect
             </ActionButton>
-            {onViewScreen && runtime.status === 'connected' && (
+            {onViewScreen && (
               <ActionButton onClick={onViewScreen} color="var(--accent-blue)" icon={ViewScreenIcon}>
                 View Screen
               </ActionButton>
@@ -312,17 +340,19 @@ function LiveOutput({ capturedOutput }: { capturedOutput: string }) {
   );
 }
 
-function ActionButton({ onClick, color, variant, icon, children }: {
+function ActionButton({ onClick, color, variant, icon, disabled, children }: {
   onClick: () => void;
   color: string;
   variant?: 'primary' | 'secondary';
   icon?: React.ReactNode;
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
   const isPrimary = variant !== 'secondary';
   return (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -334,11 +364,12 @@ function ActionButton({ onClick, color, variant, icon, children }: {
         border: isPrimary ? 'none' : `1px solid ${color}`,
         background: isPrimary ? color : 'transparent',
         color: isPrimary ? '#fff' : color,
-        cursor: 'pointer',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.75 : 1,
         transition: 'opacity 0.15s, transform 0.1s',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+      onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.opacity = '0.85'; }}
+      onMouseLeave={(e) => { if (!disabled) e.currentTarget.style.opacity = '1'; }}
     >
       {icon}
       {children}

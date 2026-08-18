@@ -66,16 +66,30 @@ async function detectMacWifi(): Promise<WifiDetectionResult> {
   return { status: 'ok', wifi: { ssid: result.ssid, bssid: result.bssid } };
 }
 
+function normalizeBssid(raw: string): string {
+  // Strip whitespace/CR, lowercase, normalize separators to colons
+  return raw.trim().replace(/\r/g, '').toLowerCase().replace(/-/g, ':');
+}
+
 async function detectWindowsWifi(): Promise<WifiDetectionResult> {
   const { stdout } = await execFileAsync('netsh', ['wlan', 'show', 'interfaces'], { timeout: 8000 });
+  // Debug: dump raw netsh output to help diagnose WiFi issues on Windows
+  console.error('[WiFi:win32] raw netsh output length:', stdout.length);
+  console.error('[WiFi:win32] netsh lines:', stdout.split(/\r?\n/).filter(l => /SSID|BSSID/i.test(l)).join(' | '));
+
   const ssidMatch = stdout.match(/^\s*SSID\s*:\s*(.+)$/mi);
   const bssidMatch = stdout.match(/^\s*BSSID\s*:\s*(.+)$/mi);
-  if (!ssidMatch) return { status: 'unavailable' };
+  if (!ssidMatch) {
+    console.error('[WiFi:win32] no SSID match found in netsh output');
+    return { status: 'unavailable' };
+  }
 
-  const ssid = ssidMatch[1].trim();
-  const bssid = bssidMatch ? bssidMatch[1].trim() : null;
+  const ssid = ssidMatch[1].trim().replace(/\r/g, '');
+  const bssid = bssidMatch ? normalizeBssid(bssidMatch[1]) : null;
   if (!ssid) return { status: 'unavailable' };
   if (isRedacted(ssid) || isRedacted(bssid)) return { status: 'permission-denied' };
+
+  console.error(`[WiFi:win32] parsed ssid="${ssid}" bssid="${bssid}"`);
   return { status: 'ok', wifi: { ssid, bssid } };
 }
 

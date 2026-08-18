@@ -103,6 +103,7 @@ async function checkWifiGate(): Promise<void> {
 
   const wifi = detection.status === 'ok' ? detection.wifi : null;
   const cacheKey = `${wifi?.ssid ?? ''}|${wifi?.bssid ?? ''}`;
+  console.error(`[WiFi:gate] detection=${detection.status} ssid="${wifi?.ssid ?? ''}" bssid="${wifi?.bssid ?? ''}" cacheKey="${cacheKey}"`);
 
   if (wifiCache && wifiCache.key === cacheKey && Date.now() - wifiCache.ts < WIFI_CACHE_TTL_MS) {
     if (!wifiCache.allowed) {
@@ -117,9 +118,11 @@ async function checkWifiGate(): Promise<void> {
     const result = await hrmsValidateWifi(session.baseUrl, token, wifi?.ssid ?? null, wifi?.bssid ?? null);
     allowed = result.allowed;
     error = result.error;
+    console.error(`[WiFi:gate] HRMS response: allowed=${allowed} matchedNetwork="${result.matchedNetwork}" error="${error}"`);
   } catch (err: any) {
     allowed = false;
     error = `Unable to verify network access: ${err.message}`;
+    console.error(`[WiFi:gate] HRMS error: ${err.message}`);
   }
 
   wifiCache = { key: cacheKey, allowed, error, ts: Date.now() };

@@ -162,8 +162,10 @@ BOOL RdpSession::postConnectCallback(freerdp* instance) {
   self->context_->update->DesktopResize = desktopResize;
   fileLog(("[RDP] callbacks set: EndPaint=" + std::to_string((uintptr_t)self->context_->update->EndPaint) + ", DesktopResize=" + std::to_string((uintptr_t)self->context_->update->DesktopResize)).c_str());
 
-  if (!self->serverName_.empty() && self->listener_) {
-    self->listener_->onServerName(self->serverName_.c_str());
+  // Emit server name from tunnel config (serverHostname_), not from cert CN.
+  // The cert callback is disabled; IgnoreCertificate=TRUE handles TLS.
+  if (!self->serverHostname_.empty() && self->listener_) {
+    self->listener_->onServerName(self->serverHostname_.c_str());
   }
 
   fileLog("[RDP] postConnectCallback exiting with TRUE");
@@ -304,10 +306,12 @@ bool RdpSession::connect() {
   // This allows connecting to servers with self-signed certificates or smaller key sizes (e.g. 1024-bit).
   freerdp_settings_set_uint32(settings, FreeRDP_TlsSecLevel, 1);
 
-  // External certificate management & IgnoreCertificate: accept self-signed
-  // certificates over the secure cloudflared tunnel across all FreeRDP versions (2.x and 3.x),
-  // while still capturing server name via verify callbacks.
-  freerdp_settings_set_bool(settings, FreeRDP_ExternalCertificateManagement, TRUE);
+  // IgnoreCertificate: accept all certificates over the secure cloudflared tunnel.
+  // ExternalCertificateManagement is intentionally NOT set — on some FreeRDP 3.x versions
+  // the VerifyX509Certificate callback is not invoked in the ExternalCertificateManagement
+  // path (verification_status stays at -1), causing ERRCONNECT_TLS_CONNECT_FAILED.
+  // With IgnoreCertificate=TRUE alone, FreeRDP auto-accepts certificates without calling
+  // the callback. Server name detection uses serverHostname_ from tunnel config instead.
   freerdp_settings_set_bool(settings, FreeRDP_IgnoreCertificate, TRUE);
 
 #if defined(FREERDP_VERSION_MAJOR) && FREERDP_VERSION_MAJOR >= 3
@@ -351,12 +355,9 @@ bool RdpSession::connect() {
   freerdp_settings_set_uint32(settings, FreeRDP_DeviceScaleFactor, freerdpScale);
 #endif
 
-#if defined(FREERDP_VERSION_MAJOR) && FREERDP_VERSION_MAJOR >= 3
-  instance_->VerifyX509Certificate = verifyX509Certificate;
-#else
-  instance_->VerifyCertificate = verifyCertificateCallback;
-  instance_->VerifyChangedCertificate = verifyChangedCertificateCallback;
-#endif
+  // VerifyX509Certificate / VerifyCertificate callbacks are NOT set.
+  // IgnoreCertificate=TRUE handles certificate acceptance without callbacks.
+  // Server name is detected via serverHostname_ from tunnel config in postConnectCallback.
   instance_->PostConnect = postConnectCallback;
 
   WLog_SetLogLevel(WLog_Get("com.freerdp.core.tls"), WLOG_TRACE);

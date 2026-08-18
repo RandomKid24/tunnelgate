@@ -2,8 +2,13 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { app } from 'electron';
 import path from 'path';
+import { writeLog } from './logger';
 
 const execFileAsync = promisify(execFile);
+
+function wifiLog(msg: string) {
+  writeLog('system', 'WiFi', 'info', msg);
+}
 
 export interface WifiInfo {
   ssid: string;
@@ -73,14 +78,14 @@ function normalizeBssid(raw: string): string {
 
 async function detectWindowsWifi(): Promise<WifiDetectionResult> {
   const { stdout } = await execFileAsync('netsh', ['wlan', 'show', 'interfaces'], { timeout: 8000 });
-  // Debug: dump raw netsh output to help diagnose WiFi issues on Windows
-  console.error('[WiFi:win32] raw netsh output length:', stdout.length);
-  console.error('[WiFi:win32] netsh lines:', stdout.split(/\r?\n/).filter(l => /SSID|BSSID/i.test(l)).join(' | '));
+  wifiLog(`[win32] raw netsh output length: ${stdout.length}`);
+  const relevantLines = stdout.split(/\r?\n/).filter(l => /SSID|BSSID/i.test(l)).join(' | ');
+  wifiLog(`[win32] netsh lines: ${relevantLines}`);
 
   const ssidMatch = stdout.match(/^\s*SSID\s*:\s*(.+)$/mi);
   const bssidMatch = stdout.match(/^\s*BSSID\s*:\s*(.+)$/mi);
   if (!ssidMatch) {
-    console.error('[WiFi:win32] no SSID match found in netsh output');
+    wifiLog('[win32] no SSID match found in netsh output');
     return { status: 'unavailable' };
   }
 
@@ -89,7 +94,7 @@ async function detectWindowsWifi(): Promise<WifiDetectionResult> {
   if (!ssid) return { status: 'unavailable' };
   if (isRedacted(ssid) || isRedacted(bssid)) return { status: 'permission-denied' };
 
-  console.error(`[WiFi:win32] parsed ssid="${ssid}" bssid="${bssid}"`);
+  wifiLog(`[win32] parsed ssid="${ssid}" bssid="${bssid ?? 'null'}"`);
   return { status: 'ok', wifi: { ssid, bssid } };
 }
 

@@ -13,9 +13,14 @@ const DEFAULT_WIDTH = 1280;
 const DEFAULT_HEIGHT = 720;
 
 function getBestRdpSize(containerW: number, containerH: number): { width: number; height: number } {
-  // Round down to nearest multiple of 4 (FreeRDP requirement)
-  const w = Math.max(800, Math.floor(containerW / 4) * 4);
-  const h = Math.max(600, Math.floor(containerH / 4) * 4);
+  const ratio = containerW / containerH;
+  // Fit to container while preserving aspect ratio (FreeRDP requires multiples of 4)
+  let w = Math.max(800, Math.floor(containerW / 4) * 4);
+  let h = Math.max(600, Math.round(w / ratio / 4) * 4);
+  if (h > containerH) {
+    h = Math.max(600, Math.floor(containerH / 4) * 4);
+    w = Math.max(800, Math.round(h * ratio / 4) * 4);
+  }
   return { width: w, height: h };
 }
 
@@ -530,7 +535,7 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
       )}
 
       {status === 'connected' && (
-        <div style={{ flex: 1, position: 'relative', minHeight: 0, display: 'flex', overflow: 'hidden' }}>
+        <div style={{ flex: 1, position: 'relative', minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', background: '#000' }}>
           {navigator.userAgent.toLowerCase().includes('win') && (
             <div style={{
               position: 'absolute',

@@ -468,13 +468,11 @@ void RdpSession::disconnect() {
 }
 
 void RdpSession::pump() {
-  fileLog("[RDP] pump started");
   int consecutiveFailures = 0;
   while (running_ && connected_) {
     HANDLE handles[64];
     DWORD ncount = freerdp_get_event_handles(context_, handles, 64);
     if (ncount == 0) {
-      fileLog("[RDP] pump: no event handles");
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
       continue;
     }
@@ -490,8 +488,6 @@ void RdpSession::pump() {
       int shall = freerdp_shall_disconnect(instance_);
 #endif
       UINT32 err = freerdp_get_last_error(context_);
-      const char* errStr = freerdp_get_last_error_string(err);
-      fileLog((std::string("[RDP] pump: check_event_handles failed, shall_disconnect=") + std::to_string(shall) + ", last_error=" + std::to_string(err) + " (" + (errStr ? errStr : "unknown") + ")").c_str());
 
       if (shall) {
         if (listener_) listener_->onDisconnect("RDP server disconnected");
@@ -501,7 +497,6 @@ void RdpSession::pump() {
 
       consecutiveFailures++;
       if (consecutiveFailures > 50) {
-        fileLog("[RDP] pump: too many consecutive failures, forcing disconnect");
         if (listener_) listener_->onDisconnect("RDP pump stalled");
         connected_ = false;
         break;
@@ -511,7 +506,6 @@ void RdpSession::pump() {
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
-  fileLog("[RDP] pump exited");
 }
 
 void RdpSession::sendPointerEvent(int flags, int x, int y) {
@@ -534,22 +528,17 @@ RdpSession* RdpSession::getSelf(rdpContext* ctx) {
 }
 
 BOOL RdpSession::beginPaint(rdpContext* ctx) {
-  fileLog("[RDP] beginPaint called");
   return TRUE;
 }
 
 BOOL RdpSession::endPaint(rdpContext* ctx) {
-  fileLog("[RDP] endPaint called");
-
   RdpSession* self = getSelf(ctx);
   if (!self || !self->listener_) {
-    fileLog("[RDP] endPaint: no self or listener");
     return TRUE;
   }
 
   rdpGdi* gdi = ctx->gdi;
   if (!gdi || !gdi->primary_buffer) {
-    fileLog("[RDP] endPaint: no gdi or buffer");
     return TRUE;
   }
 
@@ -558,12 +547,10 @@ BOOL RdpSession::endPaint(rdpContext* ctx) {
   // during connection negotiation or after a resolution change.
   if (!gdi->primary || !gdi->primary->hdc ||
       !gdi->primary->hdc->hwnd || !gdi->primary->hdc->hwnd->invalid) {
-    fileLog("[RDP] endPaint: GDI sub-structure not ready, skipping");
     return TRUE;
   }
 
   HGDI_WND wnd = gdi->primary->hdc->hwnd;
-  fileLog(("[RDP] endPaint: invalid->null=" + std::to_string(wnd->invalid->null)).c_str());
 
   if (wnd->invalid->null)
     return TRUE;
@@ -572,8 +559,6 @@ BOOL RdpSession::endPaint(rdpContext* ctx) {
   INT32 y = wnd->invalid->y;
   INT32 w = wnd->invalid->w;
   INT32 h = wnd->invalid->h;
-
-  fileLog(("[RDP] endPaint dirty region: x=" + std::to_string(x) + ", y=" + std::to_string(y) + ", w=" + std::to_string(w) + ", h=" + std::to_string(h)).c_str());
 
   // Clamp negative origins into the valid buffer region.
   // Malformed server updates can send negative x/y.
@@ -610,13 +595,9 @@ BOOL RdpSession::endPaint(rdpContext* ctx) {
   }
 
   try {
-    fileLog("[RDP] endPaint calling onBitmapUpdate listener callback");
     self->listener_->onBitmapUpdate(x, y, w, h, self->frameBuffer_.data(), needed);
-    fileLog("[RDP] endPaint callback successfully sent frame");
   } catch (const std::exception& e) {
-    fileLog((std::string("[RDP] endPaint: caught exception: ") + e.what()).c_str());
   } catch (...) {
-    fileLog("[RDP] endPaint: caught unknown exception");
   }
 
   wnd->invalid->null = TRUE;

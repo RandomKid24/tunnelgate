@@ -297,12 +297,11 @@ export function RdpCanvas({ tunnelId, width, height, connected }: Props) {
       height={height}
       tabIndex={0}
       style={{
-        width: '100%',
-        height: '100%',
+        maxWidth: '100%',
+        maxHeight: '100%',
         cursor: connected ? 'default' : 'not-allowed',
         outline: 'none',
         background: '#000',
-        objectFit: 'contain',
         imageRendering: '-webkit-optimize-contrast',
       }}
       onMouseDown={handleMouseDown}

@@ -83,7 +83,7 @@ async function detectWindowsWifi(): Promise<WifiDetectionResult> {
   wifiLog(`[win32] netsh lines: ${relevantLines}`);
 
   const ssidMatch = stdout.match(/^\s*SSID\s*:\s*(.+)$/mi);
-  const bssidMatch = stdout.match(/^\s*BSSID\s*:\s*(.+)$/mi);
+  const bssidMatch = stdout.match(/^\s*(?:AP\s+)?BSSID\s*:\s*(.+)$/mi);
   if (!ssidMatch) {
     wifiLog('[win32] no SSID match found in netsh output');
     return { status: 'unavailable' };

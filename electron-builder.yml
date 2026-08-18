@@ -42,6 +42,17 @@ mac:
   # macOS 26+. Must run before the DMG is created, not after.
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
+  # Required for the native WiFi-detection addon (native/wifi-native) to be
+  # able to request Location authorization and show the real system prompt —
+  # without this, CLLocationManager's authorization request silently no-ops.
+  extendInfo:
+    NSLocationUsageDescription: TunnelGate reads your current WiFi network name to verify you are connecting from an approved office network before allowing remote desktop access.
+    NSLocationWhenInUseUsageDescription: TunnelGate reads your current WiFi network name to verify you are connecting from an approved office network before allowing remote desktop access.
+  extraResources:
+    - from: native/wifi-native/build/Release/
+      to: wifi-native
+      filter:
+        - "*.node"
 linux:
   target:
     - target: AppImage

@@ -1,0 +1,234 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-18T00:00:00Z",
+  "title": "Design System: TunnelGate",
+  "extensions": {
+    "colorMeta": {
+      "signal-blue": {
+        "role": "primary",
+        "displayName": "Signal Blue",
+        "canonical": "oklch(62.3% 0.214 259.8)",
+        "tonalRamp": ["#1e3a8a", "#1e40af", "#1d4ed8", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe"]
+      },
+      "console-violet": {
+        "role": "secondary",
+        "displayName": "Console Violet",
+        "canonical": "oklch(60.6% 0.25 292.7)",
+        "tonalRamp": ["#4c1d95", "#5b21b6", "#6d28d9", "#7c3aed", "#8b5cf6", "#a78bfa", "#c4b5fd", "#ddd6fe"]
+      },
+      "connected-green": {
+        "role": "status-success",
+        "displayName": "Connected Green",
+        "canonical": "oklch(72.3% 0.219 149.6)",
+        "tonalRamp": ["#14532d", "#166534", "#15803d", "#16a34a", "#22c55e", "#4ade80", "#86efac", "#bbf7d0"]
+      },
+      "reconnecting-amber": {
+        "role": "status-warning",
+        "displayName": "Reconnecting Amber",
+        "canonical": "oklch(76.9% 0.188 70.1)",
+        "tonalRamp": ["#78350f", "#92400e", "#b45309", "#d97706", "#f59e0b", "#fbbf24", "#fcd34d", "#fde68a"]
+      },
+      "alert-red": {
+        "role": "status-error",
+        "displayName": "Alert Red",
+        "canonical": "oklch(63.7% 0.237 25.3)",
+        "tonalRamp": ["#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#ef4444", "#f87171", "#fca5a5", "#fecaca"]
+      },
+      "void": {
+        "role": "neutral",
+        "displayName": "Void",
+        "canonical": "#0f1117",
+        "tonalRamp": ["#0f1117", "#1a1c25", "#1e2030", "#232530", "#2a2d3e", "#6b7089", "#9ca0b0", "#e2e4eb"]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel",
+        "canonical": "#1a1c25",
+        "tonalRamp": ["#0f1117", "#1a1c25", "#1e2030", "#232530", "#2a2d3e", "#6b7089", "#9ca0b0", "#e2e4eb"]
+      },
+      "card": {
+        "role": "neutral",
+        "displayName": "Card",
+        "canonical": "#1e2030",
+        "tonalRamp": ["#0f1117", "#1a1c25", "#1e2030", "#232530", "#2a2d3e", "#6b7089", "#9ca0b0", "#e2e4eb"]
+      },
+      "raised": {
+        "role": "neutral",
+        "displayName": "Raised",
+        "canonical": "#232530",
+        "tonalRamp": ["#0f1117", "#1a1c25", "#1e2030", "#232530", "#2a2d3e", "#6b7089", "#9ca0b0", "#e2e4eb"]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#2a2d3e",
+        "tonalRamp": ["#0f1117", "#1a1c25", "#1e2030", "#232530", "#2a2d3e", "#6b7089", "#9ca0b0", "#e2e4eb"]
+      },
+      "muted-ink": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "canonical": "#6b7089",
+        "tonalRamp": ["#0f1117", "#1a1c25", "#1e2030", "#232530", "#2a2d3e", "#6b7089", "#9ca0b0", "#e2e4eb"]
+      },
+      "secondary-ink": {
+        "role": "neutral",
+        "displayName": "Secondary Ink",
+        "canonical": "#9ca0b0",
+        "tonalRamp": ["#0f1117", "#1a1c25", "#1e2030", "#232530", "#2a2d3e", "#6b7089", "#9ca0b0", "#e2e4eb"]
+      },
+      "primary-ink": {
+        "role": "neutral",
+        "displayName": "Primary Ink",
+        "canonical": "#e2e4eb",
+        "tonalRamp": ["#0f1117", "#1a1c25", "#1e2030", "#232530", "#2a2d3e", "#6b7089", "#9ca0b0", "#e2e4eb"]
+      }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Title", "purpose": "Page-level headers only (Tunnels, Logs, Settings)." },
+      "heading": { "displayName": "Heading", "purpose": "Section and dialog headers." },
+      "body": { "displayName": "Body", "purpose": "Default UI text, labels, descriptions, form values, empty-state copy." },
+      "label": { "displayName": "Label", "purpose": "Field labels and status text, in plain sentence case by default." },
+      "mono": { "displayName": "Mono", "purpose": "Genuinely technical/copy-worthy data only: hostnames, ports, log output, server names." }
+    },
+    "shadows": [
+      { "name": "resting", "value": "0 1px 3px rgba(0,0,0,0.18)", "purpose": "Soft baseline shadow for idle card-level surfaces (The Idle-Isn't-Invisible Rule)." },
+      { "name": "interactive-lift", "value": "0 4px 16px rgba(0,0,0,0.16)", "purpose": "Gentle hover/focus lift for cards, paired with translateY(-1px)." },
+      { "name": "modal", "value": "0 16px 28px -6px rgba(0,0,0,0.45)", "purpose": "Dialogs and confirmation overlays — present, not oppressive." },
+      { "name": "modal-danger-glow", "value": "0 16px 28px -6px rgba(0,0,0,0.45), 0 0 20px rgba(239,68,68,0.12)", "purpose": "Destructive confirmation dialogs (e.g. delete tunnel), soft not alarming." },
+      { "name": "ambient-glow", "value": "radial-gradient(circle at 50% 35%, rgba(59,130,246,0.10), transparent 60%)", "purpose": "Ambient warmth overlay for calm/low-density screens (login, empty states)." }
+    ],
+    "motion": [
+      { "name": "state-fast", "value": "0.15s ease", "purpose": "Border/opacity/focus-ring transitions on inputs and buttons." },
+      { "name": "state-standard", "value": "0.2s ease", "purpose": "Card border-color and shadow transitions." },
+      { "name": "enter", "value": "0.3s ease-out", "purpose": "Card/list-item entrance (fade-in + translateY)." },
+      { "name": "pulse-dot", "value": "1.5s ease-in-out infinite", "purpose": "Connecting/reconnecting status dot pulse (opacity 1 to 0.3)." },
+      { "name": "spin", "value": "0.6s linear infinite", "purpose": "Loading spinners on buttons and async actions." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Default call-to-action: Connect, Add Tunnel, Sign In.",
+      "html": "<button class=\"ds-btn-primary\">Connect</button>",
+      "css": ".ds-btn-primary { background: #3b82f6; color: #ffffff; font-size: 14px; font-weight: 600; padding: 10px 18px; border: none; border-radius: 8px; cursor: pointer; transition: opacity 0.15s; } .ds-btn-primary:hover { opacity: 0.85; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,0.35); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Lower-emphasis actions: Edit, Cancel, Sign Out, Browse.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { background: transparent; color: #9ca0b0; font-size: 14px; font-weight: 500; padding: 10px 18px; border: 1px solid #2a2d3e; border-radius: 8px; cursor: pointer; transition: opacity 0.15s; } .ds-btn-secondary:hover { opacity: 0.85; } .ds-btn-secondary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(59,130,246,0.35); }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Confirmed destructive action inside a confirmation modal (e.g. Delete Tunnel).",
+      "html": "<button class=\"ds-btn-danger\">Delete Tunnel</button>",
+      "css": ".ds-btn-danger { background: #ef4444; color: #ffffff; font-size: 14px; font-weight: 600; padding: 10px 18px; border: none; border-radius: 8px; cursor: pointer; transition: opacity 0.15s; } .ds-btn-danger:hover { opacity: 0.88; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Standard form field used across Tunnel Form, Settings, and Login.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"tunnel.example.com\" />",
+      "css": ".ds-input { background: #1a1c25; color: #e2e4eb; font-size: 14px; padding: 10px 14px; border: 1px solid #2a2d3e; border-radius: 8px; outline: none; transition: border-color 0.15s, box-shadow 0.15s; } .ds-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); } .ds-input::placeholder { color: #6b7089; }"
+    },
+    {
+      "name": "Toggle Switch",
+      "kind": "input",
+      "refersTo": "toggle",
+      "description": "Boolean settings row (Launch on startup, Start minimized, Forget password after session).",
+      "html": "<label class=\"ds-toggle\"><input type=\"checkbox\" checked /><span>Launch on system startup</span></label>",
+      "css": ".ds-toggle { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #e2e4eb; cursor: pointer; } .ds-toggle input[type=checkbox] { width: 16px; height: 16px; accent-color: #3b82f6; cursor: pointer; }"
+    },
+    {
+      "name": "Tunnel Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The system's signature component: a connection's identity, live status dot, and actions.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-head\"><span class=\"ds-status-dot ds-status-connected\"></span><div><div class=\"ds-card-title\">My Work PC</div><div class=\"ds-card-sub\">rdp-tunnel.example.com</div></div></div></div>",
+      "css": ".ds-card { background: #1e2030; border: 1px solid #2a2d3e; border-radius: 12px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.18); transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s; } .ds-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.16); transform: translateY(-1px); } .ds-card-head { display: flex; align-items: center; gap: 10px; } .ds-card-title { font-size: 14px; font-weight: 600; color: #e2e4eb; } .ds-card-sub { font-size: 12px; color: #9ca0b0; margin-top: 2px; } .ds-status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; } .ds-status-connected { background: #22c55e; }"
+    },
+    {
+      "name": "Filter Chip",
+      "kind": "chip",
+      "refersTo": "chip-filter",
+      "description": "Tunnel filter in the Logs view; pill-shaped, active/inactive only.",
+      "html": "<button class=\"ds-chip ds-chip-active\">All Tunnels</button>",
+      "css": ".ds-chip { padding: 4px 12px; font-size: 12px; font-weight: 500; border: 1px solid #2a2d3e; border-radius: 9999px; background: transparent; color: #9ca0b0; cursor: pointer; transition: all 0.15s; } .ds-chip-active { background: #3b82f6; color: #ffffff; border-color: #3b82f6; }"
+    },
+    {
+      "name": "Confirmation Modal",
+      "kind": "custom",
+      "refersTo": "card-modal",
+      "description": "Destructive-action confirmation overlay (e.g. Delete Tunnel), scrim + centered dialog.",
+      "html": "<div class=\"ds-modal-scrim\"><div class=\"ds-modal\"><h3 class=\"ds-modal-title\">Delete Tunnel?</h3><p class=\"ds-modal-body\">This action cannot be undone.</p><div class=\"ds-modal-actions\"><button class=\"ds-btn-secondary\">Cancel</button><button class=\"ds-btn-danger\">Delete Tunnel</button></div></div></div>",
+      "css": ".ds-modal-scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; } .ds-modal { background: #1e2030; border: 1px solid rgba(239,68,68,0.4); border-radius: 16px; padding: 24px; width: 90%; max-width: 400px; box-shadow: 0 16px 28px -6px rgba(0,0,0,0.45), 0 0 20px rgba(239,68,68,0.12); } .ds-modal-title { font-size: 18px; font-weight: 600; color: #e2e4eb; margin: 0 0 8px; } .ds-modal-body { font-size: 14px; color: #9ca0b0; line-height: 1.5; margin: 0 0 20px; } .ds-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }"
+    },
+    {
+      "name": "User Identity Mark",
+      "kind": "custom",
+      "refersTo": "avatar",
+      "description": "Gradient identity mark used for the signed-in user's avatar and the Login screen glyph — the only place Console Violet appears.",
+      "html": "<div class=\"ds-avatar\">AB</div>",
+      "css": ".ds-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #ffffff; }"
+    },
+    {
+      "name": "Empty State",
+      "kind": "custom",
+      "refersTo": "empty-state",
+      "description": "Calm first-run/zero-data screen (e.g. 'No tunnels configured yet') with ambient glow and a single warm CTA.",
+      "html": "<div class=\"ds-empty\"><div class=\"ds-empty-title\">No tunnels configured yet</div><div class=\"ds-empty-body\">Add your first Cloudflare Tunnel target to get started with one-click RDP.</div><button class=\"ds-btn-primary\" style=\"border-radius:12px;\">Add Your First Tunnel</button></div>",
+      "css": ".ds-empty { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; height: 100%; text-align: center; background: radial-gradient(circle at 50% 35%, rgba(59,130,246,0.10), transparent 60%), #0f1117; } .ds-empty-title { font-size: 16px; color: #9ca0b0; } .ds-empty-body { font-size: 14px; color: #6b7089; max-width: 400px; }"
+    },
+    {
+      "name": "RDP Session Overlay Toolbar",
+      "kind": "custom",
+      "refersTo": "rdp-overlay",
+      "description": "Heads-up toolbar and alert banners for the live RDP session screen. Deliberately off the Void/Panel/Card neutral scale (The Video Wins Rule): pure black canvas background, translucent white glass chrome, near-opaque status-tinted banners, white/#222 high-contrast buttons for legibility over video.",
+      "html": "<div class=\"ds-rdp-toolbar\"><button class=\"ds-rdp-btn\">← Back</button><span class=\"ds-rdp-tag\">DESKTOP-A1B2C3</span></div>",
+      "css": ".ds-rdp-toolbar { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: #1a1c25; color: #fff; font-size: 13px; } .ds-rdp-btn { padding: 6px 12px; font-size: 12px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: #fff; cursor: pointer; } .ds-rdp-tag { font-size: 11px; padding: 2px 8px; border-radius: 6px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: #22c55e; font-family: monospace; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Calm Concierge",
+    "overview": "TunnelGate stands between an employee and a genuinely technical stack — Cloudflare tunnels, certificates, the RDP protocol, HRMS access policy — and shows them almost none of it. Like a good concierge, it's quietly, thoroughly capable, but the person in front of it should only ever feel helped: warm dark surfaces, generous breathing room, plain language, and a soft ambient glow on the calm screens (the login, the empty state) that says \"you're somewhere considered,\" not \"you're operating machinery.\" The technical plumbing still shows up exactly where it must — a hostname you need to type correctly, a log line worth reading precisely — but it's the exception, not the interface's default voice.\n\nDepth stays soft rather than heavy: cards lift gently on interaction instead of casting hard industrial shadows, corners are rounded enough to feel approachable without losing definition, and color is still spent with intention — one calm blue/violet identity, plus green/amber/red reserved for connection status — but that restraint now reads as clarity for the user, not console discipline for its own sake. A non-technical employee should be able to look at any screen and immediately know what's happening and what to do next.",
+    "keyCharacteristics": [
+      "Warm dark neutral base, softened with a low, ambient blue glow on calm/low-density screens",
+      "Plain, sentence-case language by default; uppercase tracked labels are the exception, reserved for dense settings/technical panels",
+      "Status color (green/amber/red) still reserved exclusively for connection/severity state — clarity, not decoration",
+      "Monospace reserved for genuinely technical, copy-worthy values (hostnames, ports, log lines) — not the interface's default voice",
+      "Gently rounded surfaces (6–16px) and soft, low-opacity shadows; nothing reads as heavy or industrial"
+    ],
+    "rules": [
+      { "name": "The Reserved Signal Rule", "body": "Green, amber, and red mean connected, warning/in-progress, and error/destructive — nowhere else. This is what lets a non-technical user trust color at a glance.", "section": "colors" },
+      { "name": "The One Voice, Soft Glow Rule", "body": "Signal Blue is the only accent used solo, and the only one licensed as ambient atmosphere. Console Violet only ever rides alongside it in the identity gradient — never solo, never as background warmth.", "section": "colors" },
+      { "name": "The Human-First Rule", "body": "Plain sentence-case Body/Label type is the default voice. Uppercase tracked labels and monospace are exceptions reserved for genuinely dense or technical contexts.", "section": "typography" },
+      { "name": "The Verifiable-Data Rule", "body": "Anything the user might need to copy, type into another tool, or trust exactly as shown renders in Mono. Everything else stays in the warm UI font.", "section": "typography" },
+      { "name": "The Soft-Not-Heavy Rule", "body": "Shadows stay low-opacity (≤0.45) and diffuse throughout. If a shadow reads as industrial or aggressive at any size, it's too strong.", "section": "elevation" },
+      { "name": "The Idle-Isn't-Invisible Rule", "body": "Card-level surfaces always carry the Resting shadow, even with nothing happening — shadow is baseline instrumentation, not purely a hover reward.", "section": "elevation" },
+      { "name": "The Video Wins Rule", "body": "The RDP session overlay never uses the Void/Panel/Card/Raised/Hairline neutral scale — it stays on its own translucent glass-white-on-black language so it frames the video instead of competing with it.", "section": "components" }
+    ],
+    "dos": [
+      "Do reserve green/amber/red strictly for connection and severity state.",
+      "Do default to plain, sentence-case language; save uppercase tracked labels and monospace for genuinely technical/dense contexts.",
+      "Do give card-level surfaces a soft resting shadow at idle, not just on hover — but keep every shadow low-opacity and diffuse.",
+      "Do use the ambient Signal Blue glow on calm, low-density screens (login, empty states) to add warmth.",
+      "Do keep the blue/violet identity gradient exclusive to identity marks — never a generic decorative background.",
+      "Do keep radii gently rounded (6–16px) and borders at 1px Hairline; roomy padding over cramped density.",
+      "Do keep the RDP session overlay on its own glass-white-on-black language, radius-matched but never pulled onto the neutral scale."
+    ],
+    "donts": [
+      "Don't introduce a second free-floating brand color — Console Violet only rides with Signal Blue, never as ambient background.",
+      "Don't use status colors decoratively.",
+      "Don't let shadows read as heavy, industrial, or console-like — soften anything that looks aggressive.",
+      "Don't default to uppercase tracked labels or monospace for values that aren't genuinely technical or copy-worthy.",
+      "Don't show raw error codes or technical jargon in user-facing copy; translate to a short, plain sentence."
+    ]
+  }
+}

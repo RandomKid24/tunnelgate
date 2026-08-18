@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { RdpCanvas } from '../components/RdpCanvas';
 import { TunnelWithState } from '../hooks/useTunnels';
-import { shortServerName } from '../lib/format';
+import { shortServerName, formatIpcError } from '../lib/format';
 
 interface Props {
   tunnel: TunnelWithState | null;
@@ -173,7 +173,7 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
         connectedRef.current = true;
         setStatus('connected');
       } catch (err: any) {
-        const msg = err.message || 'Failed to connect RDP view';
+        const msg = formatIpcError(err, 'Failed to connect RDP view');
         if (isPasswordExpired(msg)) {
           setPasswordUpdateRequired(true);
           setStatus('disconnected');
@@ -261,7 +261,7 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
       setNewPassword('');
       setStatus('connected');
     } catch (err: any) {
-      const msg = err.message || 'Failed to update password';
+      const msg = formatIpcError(err, 'Failed to update password');
       if (isPasswordExpired(msg)) {
         setUpdateError('Password was rejected again. Please verify the new password.');
       } else {
@@ -303,7 +303,9 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
 
   const handleLaunchNativeClient = useCallback(() => {
     if (!tunnel) return;
-    window.cloudflareRdp.rdp.launchNativeClient(tunnel.id);
+    window.cloudflareRdp.rdp.launchNativeClient(tunnel.id).catch((err: any) => {
+      setError(formatIpcError(err, 'Failed to launch native client'));
+    });
   }, [tunnel]);
 
   if (!tunnel) {
@@ -338,7 +340,7 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
             style={{
               fontSize: 11,
               padding: '2px 8px',
-              borderRadius: 4,
+              borderRadius: 'var(--radius-xs)',
               background: 'rgba(255,255,255,0.12)',
               border: '1px solid rgba(255,255,255,0.2)',
               color: 'var(--accent-green)',
@@ -368,7 +370,8 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
           padding: 16,
           background: 'rgba(245,158,11,0.95)',
           color: '#fff',
-          borderRadius: 4,
+          borderRadius: 'var(--radius-md)',
+          boxShadow: 'var(--shadow-modal)',
           fontSize: 13,
           zIndex: 100,
         }}>
@@ -388,7 +391,7 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
                 placeholder="New password"
                 disabled={updatingPassword}
                 style={{
-                  padding: '8px 10px', fontSize: 13, borderRadius: 4,
+                  padding: '10px 12px', fontSize: 14, borderRadius: 'var(--radius-sm)',
                   border: '1px solid rgba(255,255,255,0.4)',
                   background: 'rgba(255,255,255,0.15)', color: '#fff',
                   outline: 'none', width: '100%', boxSizing: 'border-box',
@@ -430,7 +433,7 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
               </button>
             </div>
             {updateError && (
-              <div style={{ fontSize: 11, background: 'rgba(239,68,68,0.8)', padding: '6px 8px', borderRadius: 4 }}>
+              <div style={{ fontSize: 12, background: 'rgba(239,68,68,0.8)', padding: '6px 10px', borderRadius: 'var(--radius-xs)' }}>
                 {updateError}
               </div>
             )}
@@ -439,9 +442,9 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
                 onClick={handleUpdatePassword}
                 disabled={updatingPassword || !newPassword.trim()}
                 style={{
-                  padding: '8px 16px', fontSize: 12, fontWeight: 600,
+                  padding: '10px 18px', fontSize: 13, fontWeight: 600,
                   background: updatingPassword ? 'rgba(255,255,255,0.4)' : '#fff',
-                  color: '#222', border: 'none', borderRadius: 4, cursor: updatingPassword ? 'not-allowed' : 'pointer',
+                  color: '#222', border: 'none', borderRadius: 'var(--radius-sm)', cursor: updatingPassword ? 'not-allowed' : 'pointer',
                 }}
               >
                 {updatingPassword ? 'Updating...' : 'Update Password & Reconnect'}
@@ -450,9 +453,9 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
                 onClick={handleCancelUpdate}
                 disabled={updatingPassword}
                 style={{
-                  padding: '8px 16px', fontSize: 12,
+                  padding: '10px 18px', fontSize: 13,
                   background: 'transparent', color: '#fff',
-                  border: '1px solid rgba(255,255,255,0.4)', borderRadius: 4, cursor: 'pointer',
+                  border: '1px solid rgba(255,255,255,0.4)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                 }}
               >
                 Cancel
@@ -469,13 +472,13 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
             position: 'absolute',
             top: 48, left: 16, right: 16,
             padding: '16px',
-            background: 'rgba(220, 38, 38, 0.95)',
+            background: 'rgba(239, 68, 68, 0.95)',
             backdropFilter: 'blur(8px)',
             color: '#fff',
-            borderRadius: 6,
+            borderRadius: 'var(--radius-md)',
             fontSize: 13,
             zIndex: 100,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            boxShadow: 'var(--shadow-modal)',
             border: '1px solid rgba(255,255,255,0.1)',
           }}>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -488,27 +491,27 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
             </div>
             <div style={{ opacity: 0.9, lineHeight: 1.5, whiteSpace: 'pre-wrap', marginBottom: 12 }}>{desc}</div>
             {error !== desc && (
-              <details style={{ marginTop: 8, fontSize: 11, background: 'rgba(0,0,0,0.2)', padding: '6px 8px', borderRadius: 4 }}>
+              <details style={{ marginTop: 8, fontSize: 11, background: 'rgba(0,0,0,0.2)', padding: '6px 8px', borderRadius: 'var(--radius-xs)' }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 600, userSelect: 'none' }}>Technical Details</summary>
                 <div style={{ marginTop: 4, fontFamily: 'monospace', opacity: 0.8, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{error}</div>
               </details>
             )}
             <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
               <button onClick={handleRetry} style={{
-                padding: '6px 14px', fontSize: 12, fontWeight: 600,
-                background: '#fff', color: '#222', border: 'none', borderRadius: 4, cursor: 'pointer',
+                padding: '8px 16px', fontSize: 12, fontWeight: 600,
+                background: '#fff', color: '#222', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
               }}>
                 Retry Connection
               </button>
               <button onClick={handleLaunchNativeClient} style={{
-                padding: '6px 14px', fontSize: 12,
-                background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 4, cursor: 'pointer',
+                padding: '8px 16px', fontSize: 12,
+                background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
               }}>
                 Open Native Client
               </button>
               <button onClick={handleBack} style={{
-                padding: '6px 14px', fontSize: 12,
-                background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 4, cursor: 'pointer',
+                padding: '8px 16px', fontSize: 12,
+                background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
               }}>
                 Cancel
               </button>
@@ -534,12 +537,12 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
               top: 12,
               left: '50%',
               transform: 'translateX(-50%)',
-              background: 'rgba(30, 41, 59, 0.85)',
+              background: 'rgba(30, 32, 48, 0.85)',
               backdropFilter: 'blur(4px)',
-              color: '#f8fafc',
+              color: 'var(--text-primary)',
               padding: '6px 12px',
-              borderRadius: '4px',
-              fontSize: '11px',
+              borderRadius: 'var(--radius-full)',
+              fontSize: '12px',
               zIndex: 10,
               border: '1px solid rgba(255, 255, 255, 0.1)',
               pointerEvents: 'none'
@@ -560,11 +563,11 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
 }
 
 const toolbarBtnStyle: React.CSSProperties = {
-  padding: '4px 10px',
+  padding: '6px 12px',
   fontSize: 12,
   background: 'rgba(255,255,255,0.15)',
   border: '1px solid rgba(255,255,255,0.2)',
-  borderRadius: 4,
+  borderRadius: 'var(--radius-xs)',
   color: '#fff',
   cursor: 'pointer',
 };

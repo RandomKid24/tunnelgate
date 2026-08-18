@@ -50,6 +50,15 @@ export interface AppSettings {
   forgetPasswordAfterSession: boolean;
 }
 
+export const HRMS_BASE_URL = 'https://hrms.encryptedbar.com';
+
+export interface HrmsSession {
+  baseUrl: string;
+  username: string;
+  employeeName?: string;
+  loggedInAt: string;
+}
+
 export const IPC_CHANNELS = {
   TUNNELS_LIST: 'tunnels:list',
   TUNNELS_ADD: 'tunnels:add',
@@ -77,6 +86,9 @@ export const IPC_CHANNELS = {
   RDP_AVAILABLE: 'rdp:available',
   RDP_VIEW_UPDATE_PASSWORD: 'rdp:view-update-password',
   LAUNCH_NATIVE_CLIENT: 'rdp:launch-native-client',
+  AUTH_LOGIN: 'auth:login',
+  AUTH_LOGOUT: 'auth:logout',
+  AUTH_GET_SESSION: 'auth:get-session',
 } as const;
 
 export type RdpViewStatus = 'disconnected' | 'connecting' | 'connected' | 'error';

@@ -8,10 +8,19 @@ export interface WindowBounds {
   height?: number;
 }
 
+export interface StoredAuthSession {
+  baseUrl: string;
+  username: string;
+  employeeName?: string;
+  encryptedToken: string;
+  loggedInAt: string;
+}
+
 interface Schema {
   tunnels: TunnelConfig[];
   settings: AppSettings;
   windowBounds: WindowBounds;
+  auth: StoredAuthSession | null;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -58,11 +67,16 @@ export const store = new Store<Schema>({
       },
       default: {},
     },
+    auth: {
+      type: ['object', 'null'],
+      default: null,
+    },
   },
   defaults: {
     tunnels: [],
     settings: DEFAULT_SETTINGS,
     windowBounds: {},
+    auth: null,
   },
 });
 
@@ -94,4 +108,12 @@ export function setSettings(settings: AppSettings): void {
     const { app } = require('electron');
     app.setLoginItemSettings({ openAtLogin: settings.launchOnStartup });
   }
+}
+
+export function getAuthSession(): StoredAuthSession | null {
+  return store.get('auth', null);
+}
+
+export function setAuthSession(session: StoredAuthSession | null): void {
+  store.set('auth', session);
 }

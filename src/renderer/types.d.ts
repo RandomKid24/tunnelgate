@@ -1,4 +1,4 @@
-import { TunnelConfig, TunnelRuntimeState, AppSettings, LogEntry, TunnelFormData, UpdateInfo } from '../shared/types';
+import { TunnelConfig, TunnelRuntimeState, AppSettings, LogEntry, TunnelFormData, UpdateInfo, HrmsSession } from '../shared/types';
 
 declare global {
   interface Window {
@@ -9,6 +9,11 @@ declare global {
       createTicket: (data?: Record<string, unknown>) => Promise<unknown>;
     };
     cloudflareRdp: {
+      auth: {
+        login: (baseUrl: string, username: string, password: string) => Promise<HrmsSession>;
+        logout: () => Promise<void>;
+        getSession: () => Promise<HrmsSession | null>;
+      };
       tunnels: {
         list: () => Promise<TunnelConfig[]>;
         add: (data: TunnelFormData) => Promise<TunnelConfig>;
@@ -36,7 +41,7 @@ declare global {
       };
       rdp: {
         isAvailable: () => Promise<{ available: boolean; error?: string }>;
-        launchNativeClient: (tunnelId: string) => void;
+        launchNativeClient: (tunnelId: string) => Promise<void>;
         connect: (tunnelId: string, width?: number, height?: number) => Promise<boolean>;
         disconnect: (tunnelId: string) => Promise<void>;
         sendMouse: (tunnelId: string, flags: number, x: number, y: number) => void;

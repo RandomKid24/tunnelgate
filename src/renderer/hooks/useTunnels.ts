@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { TunnelConfig, TunnelRuntimeState, TunnelStatus } from '../../shared/types';
+import { formatIpcError } from '../lib/format';
 
 export interface TunnelWithState extends TunnelConfig {
   runtime: TunnelRuntimeState;
@@ -100,7 +101,7 @@ export function useTunnels() {
     try {
       await window.cloudflareRdp.tunnels.connect(tunnelId);
     } catch (err: any) {
-      setErrors((prev) => ({ ...prev, [tunnelId]: err.message || 'Connection failed' }));
+      setErrors((prev) => ({ ...prev, [tunnelId]: formatIpcError(err) }));
     }
   }, []);
 

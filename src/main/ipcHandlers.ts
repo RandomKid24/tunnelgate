@@ -1,11 +1,13 @@
 import { ipcMain, dialog, app, BrowserWindow, shell } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
-import { IPC_CHANNELS, TunnelConfig, TunnelFormData, AppSettings, LogEntry, RdpViewState, UpdateInfo } from '../shared/types';
-import { getTunnels, setTunnels, getSettings, setSettings } from './store';
+import { IPC_CHANNELS, TunnelConfig, TunnelFormData, AppSettings, LogEntry, RdpViewState, UpdateInfo, HrmsSession } from '../shared/types';
+import { getTunnels, setTunnels, getSettings, setSettings, getAuthSession, setAuthSession, StoredAuthSession } from './store';
 import { credentialStore } from './credentialStore';
 import { TunnelManager } from './tunnelManager';
 import { RdpViewManager } from './rdpViewManager';
 import { getCombinedLogs, writeLog, getLogs } from './logger';
+import { hrmsLogin, hrmsValidateWifi } from './hrmsClient';
+import { detectWifi } from './wifiDetector';
 
 const isWin = process.platform === 'win32';
 
@@ -58,7 +60,105 @@ function isNewerVersion(current: string, latest: string): boolean {
   return false;
 }
 
+interface WifiCacheEntry {
+  key: string;
+  allowed: boolean;
+  error: string | null;
+  ts: number;
+}
+
+let wifiCache: WifiCacheEntry | null = null;
+const WIFI_CACHE_TTL_MS = 45000;
+
+function toPublicSession(session: StoredAuthSession): HrmsSession {
+  return {
+    baseUrl: session.baseUrl,
+    username: session.username,
+    employeeName: session.employeeName,
+    loggedInAt: session.loggedInAt,
+  };
+}
+
+async function checkWifiGate(): Promise<void> {
+  const session = getAuthSession();
+  if (!session) {
+    throw new Error('Not logged in. Please sign in with your HRMS account first.');
+  }
+
+  let token: string;
+  try {
+    token = credentialStore.decrypt(session.encryptedToken);
+  } catch {
+    throw new Error('Your session has expired. Please log in again.');
+  }
+
+  const detection = await detectWifi();
+
+  if (detection.status === 'permission-denied') {
+    const hint = process.platform === 'darwin'
+      ? 'TunnelGate needs Location access to read your WiFi network name — you should see a system permission prompt; click Allow. If you already denied it, re-enable it under System Settings → Privacy & Security → Location Services → TunnelGate, then try again.'
+      : 'Your operating system is hiding your WiFi network name from TunnelGate. Check your WiFi/location privacy settings and try again.';
+    throw new Error(`Could not verify your WiFi network. ${hint}`);
+  }
+
+  const wifi = detection.status === 'ok' ? detection.wifi : null;
+  const cacheKey = `${wifi?.ssid ?? ''}|${wifi?.bssid ?? ''}`;
+
+  if (wifiCache && wifiCache.key === cacheKey && Date.now() - wifiCache.ts < WIFI_CACHE_TTL_MS) {
+    if (!wifiCache.allowed) {
+      throw new Error(wifiCache.error || 'This WiFi network is not authorized for server access.');
+    }
+    return;
+  }
+
+  let allowed: boolean;
+  let error: string | null;
+  try {
+    const result = await hrmsValidateWifi(session.baseUrl, token, wifi?.ssid ?? null, wifi?.bssid ?? null);
+    allowed = result.allowed;
+    error = result.error;
+  } catch (err: any) {
+    allowed = false;
+    error = `Unable to verify network access: ${err.message}`;
+  }
+
+  wifiCache = { key: cacheKey, allowed, error, ts: Date.now() };
+
+  if (!allowed) {
+    throw new Error(error || 'This WiFi network is not authorized for server access.');
+  }
+}
+
 export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager?: RdpViewManager): void {
+  ipcMain.handle(IPC_CHANNELS.AUTH_LOGIN, async (_event, baseUrl: string, username: string, password: string): Promise<HrmsSession> => {
+    if (!credentialStore.isEncryptionAvailable()) {
+      throw new Error('Encryption is not available on this system. Cannot store your session securely.');
+    }
+
+    const result = await hrmsLogin(baseUrl, username, password);
+    const session: StoredAuthSession = {
+      baseUrl: baseUrl.trim().replace(/\/+$/, ''),
+      username: result.username,
+      employeeName: result.employeeName,
+      encryptedToken: credentialStore.encrypt(result.token),
+      loggedInAt: new Date().toISOString(),
+    };
+
+    setAuthSession(session);
+    wifiCache = null;
+    return toPublicSession(session);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.AUTH_LOGOUT, async () => {
+    setAuthSession(null);
+    wifiCache = null;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.AUTH_GET_SESSION, async (): Promise<HrmsSession | null> => {
+    const session = getAuthSession();
+    return session ? toPublicSession(session) : null;
+  });
+
   ipcMain.handle(IPC_CHANNELS.TUNNELS_LIST, () => {
     return getTunnels();
   });
@@ -133,6 +233,8 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
   });
 
   ipcMain.handle(IPC_CHANNELS.TUNNEL_CONNECT, async (_event, tunnelId: string) => {
+    await checkWifiGate();
+
     const tunnels = getTunnels();
     const config = tunnels.find((t) => t.id === tunnelId);
     if (!config) throw new Error('Tunnel not found');
@@ -228,6 +330,7 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
 
   ipcMain.handle(IPC_CHANNELS.RDP_VIEW_CONNECT, async (_event, tunnelId: string, width?: number, height?: number) => {
     if (!rdpViewManager) throw new Error('RDP view manager not initialized');
+    await checkWifiGate();
 
     const tunnels = getTunnels();
     const config = tunnels.find((t) => t.id === tunnelId);
@@ -279,7 +382,8 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
     return true;
   });
 
-  ipcMain.handle(IPC_CHANNELS.LAUNCH_NATIVE_CLIENT, (_event, tunnelId: string) => {
+  ipcMain.handle(IPC_CHANNELS.LAUNCH_NATIVE_CLIENT, async (_event, tunnelId: string) => {
+    await checkWifiGate();
     tunnelManager.launchNativeClient(tunnelId);
   });
 

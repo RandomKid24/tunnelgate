@@ -25,7 +25,7 @@ export function Logs({ tunnels, initialTunnelId, onClearFilter }: Props) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Logs</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Logs</h1>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <FilterChip active={!filterTunnelId} onClick={() => handleSelectFilter(undefined)}>
@@ -59,7 +59,7 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
         fontSize: 12,
         fontWeight: 500,
         border: '1px solid var(--border-color)',
-        borderRadius: 12,
+        borderRadius: 'var(--radius-full)',
         background: active ? 'var(--accent-blue)' : 'transparent',
         color: active ? '#fff' : 'var(--text-secondary)',
         cursor: 'pointer',

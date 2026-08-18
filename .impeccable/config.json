@@ -1,0 +1,92 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-color",
+        "value": "#fff",
+        "createdAt": "2026-08-18T06:06:56.411Z",
+        "reason": "matches DESIGN.md button-primary/danger textColor #ffffff, shorthand hex not normalized by detector"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255,255,255,0.4)",
+        "createdAt": "2026-08-18T06:06:56.446Z",
+        "reason": "RDP Session Overlay glass-HUD language, documented in DESIGN.md (The Video Wins Rule) as an intentional exception to the neutral scale"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0,0,0,0.06)",
+        "createdAt": "2026-08-18T06:08:15.225Z",
+        "reason": "subtle recessed background tint for the live cloudflared-output readout inside a tunnel card, distinct from elevation/overlay tokens, low-risk inset technique"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#1a1a1a",
+        "createdAt": "2026-08-18T06:10:39.629Z",
+        "reason": "dark text needed for contrast on the amber WARN log-level badge; log badges are the explicit DESIGN.md exception zone for dense technical styling"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#000",
+        "createdAt": "2026-08-18T06:11:25.874Z",
+        "reason": "fullscreen RDP viewer container background; pure black behind the remote-desktop video stream, intentionally outside the app-chrome neutral scale"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255,255,255,0.12)",
+        "createdAt": "2026-08-18T06:17:28.651Z",
+        "reason": "RDP Session Overlay glass-HUD language, documented in DESIGN.md (The Video Wins Rule) as an intentional exception to the neutral scale"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255,255,255,0.2)",
+        "createdAt": "2026-08-18T06:17:28.685Z",
+        "reason": "RDP Session Overlay glass-HUD language, documented in DESIGN.md (The Video Wins Rule) as an intentional exception to the neutral scale"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255,255,255,0.15)",
+        "createdAt": "2026-08-18T06:17:28.717Z",
+        "reason": "RDP Session Overlay glass-HUD language, documented in DESIGN.md (The Video Wins Rule) as an intentional exception to the neutral scale"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255,255,255,0.6)",
+        "createdAt": "2026-08-18T06:17:28.780Z",
+        "reason": "RDP Session Overlay glass-HUD language, documented in DESIGN.md (The Video Wins Rule) as an intentional exception to the neutral scale"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255,255,255,0.1)",
+        "createdAt": "2026-08-18T06:17:28.813Z",
+        "reason": "RDP Session Overlay glass-HUD language, documented in DESIGN.md (The Video Wins Rule) as an intentional exception to the neutral scale"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255, 255, 255, 0.1)",
+        "createdAt": "2026-08-18T06:17:28.842Z",
+        "reason": "RDP Session Overlay glass-HUD language, documented in DESIGN.md (The Video Wins Rule) as an intentional exception to the neutral scale"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(0,0,0,0.2)",
+        "createdAt": "2026-08-18T06:17:28.872Z",
+        "reason": "RDP Session Overlay glass-HUD language, documented in DESIGN.md (The Video Wins Rule) as an intentional exception to the neutral scale (recessed technical-details readout on the error banner)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#222",
+        "createdAt": "2026-08-18T06:17:28.900Z",
+        "reason": "RDP Session Overlay glass-HUD language, documented in DESIGN.md (The Video Wins Rule) as an intentional exception to the neutral scale (high-contrast dark text on white buttons over video)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "rgba(255,255,255,0.5)",
+        "createdAt": "2026-08-18T06:17:28.929Z",
+        "reason": "RDP Session Overlay glass-HUD language, documented in DESIGN.md (The Video Wins Rule) as an intentional exception to the neutral scale"
+      }
+    ]
+  }
+}

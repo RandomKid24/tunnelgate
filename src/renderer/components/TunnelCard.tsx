@@ -79,17 +79,18 @@ export function TunnelCard({ tunnel, onConnect, onDisconnect, onEdit, onDelete, 
       style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border-color)',
-        borderRadius: 8,
-        padding: 16,
+        borderRadius: 'var(--radius-md)',
+        padding: 18,
+        boxShadow: 'var(--shadow-resting)',
         transition: 'border-color 0.2s, box-shadow 0.2s, transform 0.15s',
         borderColor: isActive ? statusColors[runtime.status] : undefined,
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.2)';
+        e.currentTarget.style.boxShadow = 'var(--shadow-lift)';
         e.currentTarget.style.transform = 'translateY(-1px)';
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.boxShadow = 'none';
+        e.currentTarget.style.boxShadow = 'var(--shadow-resting)';
         e.currentTarget.style.transform = 'translateY(0)';
       }}
     >
@@ -138,7 +139,7 @@ export function TunnelCard({ tunnel, onConnect, onDisconnect, onEdit, onDelete, 
                 fontSize: 10,
                 fontWeight: 700,
                 padding: '2px 6px',
-                borderRadius: 4,
+                borderRadius: 'var(--radius-xs)',
                 background: 'var(--bg-tertiary)',
                 color: 'var(--text-muted)',
                 border: '1px solid var(--border-color)',
@@ -148,20 +149,21 @@ export function TunnelCard({ tunnel, onConnect, onDisconnect, onEdit, onDelete, 
               :{runtime.localPort}
             </span>
           )}
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)' }}>
             {statusLabels[runtime.status]}
           </span>
         </div>
       </div>
 
       {connectError && (
-        <div style={{ fontSize: 12, color: 'var(--accent-red)', marginBottom: 8, padding: '4px 8px', background: 'rgba(239,68,68,0.1)', borderRadius: 4, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
-          Connection failed: {connectError}
+        <div style={{ fontSize: 13, color: 'var(--accent-red)', marginBottom: 8, padding: '6px 10px', background: 'rgba(239,68,68,0.1)', borderRadius: 'var(--radius-xs)' }}>
+          Couldn't connect. Details below:
+          <div style={{ fontFamily: 'monospace', fontSize: 12, marginTop: 4, whiteSpace: 'pre-wrap' }}>{connectError}</div>
         </div>
       )}
 
       {runtime.lastError && runtime.status === 'error' && (
-        <div style={{ fontSize: 12, color: 'var(--accent-red)', marginBottom: 8, padding: '4px 8px', background: 'rgba(239,68,68,0.1)', borderRadius: 4, whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+        <div style={{ fontSize: 13, color: 'var(--accent-red)', marginBottom: 8, padding: '6px 10px', background: 'rgba(239,68,68,0.1)', borderRadius: 'var(--radius-xs)', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
           {runtime.lastError}
         </div>
       )}
@@ -173,29 +175,29 @@ export function TunnelCard({ tunnel, onConnect, onDisconnect, onEdit, onDelete, 
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
         {isActive ? (
           <>
-            <ActionButton onClick={() => onDisconnect(tunnel.id)} color="var(--accent-red)">
+            <ActionButton onClick={() => onDisconnect(tunnel.id)} color="var(--accent-red)" icon={DisconnectIcon}>
               Disconnect
             </ActionButton>
             {onViewScreen && runtime.status === 'connected' && (
-              <ActionButton onClick={onViewScreen} color="var(--accent-blue)">
+              <ActionButton onClick={onViewScreen} color="var(--accent-blue)" icon={ViewScreenIcon}>
                 View Screen
               </ActionButton>
             )}
           </>
         ) : (
-          <ActionButton onClick={() => onConnect(tunnel.id)} color="var(--accent-green)">
+          <ActionButton onClick={() => onConnect(tunnel.id)} color="var(--accent-green)" icon={ConnectIcon}>
             Connect
           </ActionButton>
         )}
-        <ActionButton onClick={() => onEdit(tunnel)} color="var(--accent-blue)" variant="secondary">
+        <ActionButton onClick={() => onEdit(tunnel)} color="var(--accent-blue)" variant="secondary" icon={EditIcon}>
           Edit
         </ActionButton>
         {onViewLogs && (
-          <ActionButton onClick={onViewLogs} color="var(--text-secondary)" variant="secondary">
+          <ActionButton onClick={onViewLogs} color="var(--text-secondary)" variant="secondary" icon={LogsListIcon}>
             Logs
           </ActionButton>
         )}
-        <ActionButton onClick={() => setShowDeleteConfirm(true)} color="var(--accent-red)" variant="secondary">
+        <ActionButton onClick={() => setShowDeleteConfirm(true)} color="var(--accent-red)" variant="secondary" icon={DeleteIcon}>
           Delete
         </ActionButton>
       </div>
@@ -208,7 +210,7 @@ export function TunnelCard({ tunnel, onConnect, onDisconnect, onEdit, onDelete, 
             left: 0,
             right: 0,
             bottom: 0,
-            background: 'rgba(0, 0, 0, 0.65)',
+            background: 'var(--overlay-bg)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
@@ -222,11 +224,11 @@ export function TunnelCard({ tunnel, onConnect, onDisconnect, onEdit, onDelete, 
             style={{
               background: 'var(--bg-card)',
               border: '1px solid rgba(239, 68, 68, 0.4)',
-              borderRadius: 12,
+              borderRadius: 'var(--radius-lg)',
               padding: 24,
               width: '90%',
               maxWidth: 400,
-              boxShadow: '0 20px 30px -5px rgba(0, 0, 0, 0.8), 0 0 20px rgba(239, 68, 68, 0.15)',
+              boxShadow: 'var(--shadow-modal-danger)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -240,10 +242,10 @@ export function TunnelCard({ tunnel, onConnect, onDisconnect, onEdit, onDelete, 
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 style={{
-                  padding: '8px 16px',
+                  padding: '10px 18px',
                   fontSize: 13,
                   fontWeight: 500,
-                  borderRadius: 6,
+                  borderRadius: 'var(--radius-sm)',
                   border: '1px solid var(--border-color)',
                   background: 'transparent',
                   color: 'var(--text-secondary)',
@@ -258,10 +260,10 @@ export function TunnelCard({ tunnel, onConnect, onDisconnect, onEdit, onDelete, 
                   setShowDeleteConfirm(false);
                 }}
                 style={{
-                  padding: '8px 16px',
+                  padding: '10px 18px',
                   fontSize: 13,
                   fontWeight: 600,
-                  borderRadius: 6,
+                  borderRadius: 'var(--radius-sm)',
                   border: 'none',
                   background: 'var(--accent-red)',
                   color: '#fff',
@@ -294,7 +296,7 @@ function LiveOutput({ capturedOutput }: { capturedOutput: string }) {
         fontSize: 11,
         lineHeight: 1.4,
         background: 'rgba(0,0,0,0.06)',
-        borderRadius: 4,
+        borderRadius: 'var(--radius-xs)',
         padding: 8,
         maxHeight: 150,
         overflowY: 'auto',
@@ -310,10 +312,11 @@ function LiveOutput({ capturedOutput }: { capturedOutput: string }) {
   );
 }
 
-function ActionButton({ onClick, color, variant, children }: {
+function ActionButton({ onClick, color, variant, icon, children }: {
   onClick: () => void;
   color: string;
   variant?: 'primary' | 'secondary';
+  icon?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const isPrimary = variant !== 'secondary';
@@ -321,20 +324,43 @@ function ActionButton({ onClick, color, variant, children }: {
     <button
       onClick={onClick}
       style={{
-        padding: '4px 12px',
-        fontSize: 12,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '6px 14px',
+        fontSize: 13,
         fontWeight: 500,
-        borderRadius: 4,
+        borderRadius: 'var(--radius-xs)',
         border: isPrimary ? 'none' : `1px solid ${color}`,
         background: isPrimary ? color : 'transparent',
         color: isPrimary ? '#fff' : color,
         cursor: 'pointer',
         transition: 'opacity 0.15s, transform 0.1s',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }}
+      onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
       onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
     >
+      {icon}
       {children}
     </button>
   );
 }
+
+const ConnectIcon = (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+);
+const DisconnectIcon = (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0" /><line x1="12" y1="2" x2="12" y2="12" /></svg>
+);
+const ViewScreenIcon = (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg>
+);
+const EditIcon = (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+);
+const LogsListIcon = (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
+);
+const DeleteIcon = (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+);

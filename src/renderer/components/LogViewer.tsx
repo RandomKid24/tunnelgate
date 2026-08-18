@@ -85,7 +85,7 @@ export function LogViewer({ logs, onExport, onClear, filterTunnelId }: Props) {
               padding: '2px 8px',
               fontSize: 11,
               border: `1px solid ${autoScroll ? 'var(--accent-blue)' : 'var(--border-color)'}`,
-              borderRadius: 4,
+              borderRadius: 'var(--radius-xs)',
               background: autoScroll ? 'var(--accent-blue)' : 'transparent',
               color: autoScroll ? '#fff' : 'var(--text-secondary)',
               cursor: 'pointer',
@@ -100,7 +100,7 @@ export function LogViewer({ logs, onExport, onClear, filterTunnelId }: Props) {
               padding: '2px 8px',
               fontSize: 11,
               border: '1px solid var(--border-color)',
-              borderRadius: 4,
+              borderRadius: 'var(--radius-xs)',
               background: 'transparent',
               color: 'var(--text-secondary)',
               cursor: 'pointer',
@@ -115,7 +115,7 @@ export function LogViewer({ logs, onExport, onClear, filterTunnelId }: Props) {
               padding: '2px 8px',
               fontSize: 11,
               border: '1px solid var(--border-color)',
-              borderRadius: 4,
+              borderRadius: 'var(--radius-xs)',
               background: 'transparent',
               color: 'var(--text-secondary)',
               cursor: 'pointer',
@@ -186,7 +186,7 @@ export function LogViewer({ logs, onExport, onClear, filterTunnelId }: Props) {
                 {levelBadge[entry.level]?.label || entry.level}
               </span>
               {' '}
-              <span style={{ fontWeight: 600, color: 'var(--accent-purple)' }}>
+              <span style={{ fontWeight: 600, color: 'var(--accent-blue)' }}>
                 [{entry.tunnelName}]
               </span>
               {' '}

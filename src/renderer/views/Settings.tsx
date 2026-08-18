@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AppSettings } from '../../shared/types';
+import { AppSettings, HrmsSession } from '../../shared/types';
 
 const DEFAULT_SETTINGS: AppSettings = {
   cloudflaredPath: '',
@@ -9,7 +9,12 @@ const DEFAULT_SETTINGS: AppSettings = {
   forgetPasswordAfterSession: true,
 };
 
-export function Settings() {
+interface SettingsProps {
+  session: HrmsSession | null;
+  onLogout: () => void;
+}
+
+export function Settings({ session, onLogout }: SettingsProps) {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [cloudflaredStatus, setCloudflaredStatus] = useState<{ found: boolean; path: string | null } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -38,7 +43,23 @@ export function Settings() {
 
   return (
     <div style={{ padding: 24, overflowY: 'auto', height: '100%' }}>
-      <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, marginBottom: 24 }}>Settings</h1>
+      <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, marginBottom: 24 }}>Settings</h1>
+
+      <Section title="Account" tooltip="Your HRMS account. Used to verify you're on an approved office network before allowing a connection.">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>
+              {session?.employeeName || session?.username}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+              {session?.baseUrl}
+            </div>
+          </div>
+          <button onClick={onLogout} style={secondaryBtnStyle}>Sign Out</button>
+        </div>
+      </Section>
+
+      <Divider />
 
       <Section title="Cloudflared" tooltip="Path to the cloudflared binary used to create TCP tunnels. Auto-detected if left empty.">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -65,7 +86,7 @@ export function Settings() {
                 fontFamily: 'monospace',
                 background: 'var(--bg-secondary)',
                 border: '1px solid var(--border-color)',
-                borderRadius: 6,
+                borderRadius: 'var(--radius-sm)',
                 color: 'var(--text-primary)',
                 outline: 'none',
               }}
@@ -110,7 +131,7 @@ export function Settings() {
       <Divider />
 
       {saving && (
-        <div style={{ position: 'fixed', bottom: 16, right: 16, padding: '8px 16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+        <div style={{ position: 'fixed', bottom: 16, right: 16, padding: '8px 16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-modal)', fontSize: 12, color: 'var(--text-secondary)' }}>
           Saving...
         </div>
       )}
@@ -196,11 +217,11 @@ function Toggle({ checked, onChange, label, tooltip }: { checked: boolean; onCha
 }
 
 const secondaryBtnStyle: React.CSSProperties = {
-  padding: '8px 16px',
+  padding: '10px 18px',
   fontSize: 13,
   fontWeight: 500,
   border: '1px solid var(--border-color)',
-  borderRadius: 6,
+  borderRadius: 'var(--radius-sm)',
   background: 'transparent',
   color: 'var(--text-secondary)',
   cursor: 'pointer',

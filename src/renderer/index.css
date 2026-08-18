@@ -12,7 +12,16 @@
   --accent-amber: #f59e0b;
   --accent-blue: #3b82f6;
   --accent-purple: #8b5cf6;
-  --overlay-bg: rgba(0,0,0,0.5);
+  --overlay-bg: rgba(0,0,0,0.55);
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+  --shadow-resting: 0 1px 3px rgba(0,0,0,0.18);
+  --shadow-lift: 0 4px 16px rgba(0,0,0,0.16);
+  --shadow-modal: 0 16px 28px -6px rgba(0,0,0,0.45);
+  --shadow-modal-danger: 0 16px 28px -6px rgba(0,0,0,0.45), 0 0 20px rgba(239,68,68,0.12);
 }
 
 * {
@@ -39,7 +48,7 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: var(--border-color);
-  border-radius: 3px;
+  border-radius: var(--radius-full);
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -69,6 +78,23 @@ body {
   to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.tg-input {
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.tg-input:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
 .card-enter {
   animation: fade-in 0.3s ease-out;
+}
+
+.tg-ambient {
+  background: radial-gradient(circle at 50% 35%, rgba(59, 130, 246, 0.10), transparent 60%), var(--bg-primary);
 }

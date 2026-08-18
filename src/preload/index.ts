@@ -1,10 +1,21 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { pqElectronPreload } from 'pq-befu/integrations/electron';
-import { IPC_CHANNELS, TunnelFormData, TunnelConfig, AppSettings, TunnelRuntimeState, LogEntry, UpdateInfo } from '../shared/types';
+import { IPC_CHANNELS, TunnelFormData, TunnelConfig, AppSettings, TunnelRuntimeState, LogEntry, UpdateInfo, HrmsSession } from '../shared/types';
 
 pqElectronPreload();
 
 const api = {
+  auth: {
+    login: (baseUrl: string, username: string, password: string): Promise<HrmsSession> =>
+      ipcRenderer.invoke(IPC_CHANNELS.AUTH_LOGIN, baseUrl, username, password),
+
+    logout: (): Promise<void> =>
+      ipcRenderer.invoke(IPC_CHANNELS.AUTH_LOGOUT),
+
+    getSession: (): Promise<HrmsSession | null> =>
+      ipcRenderer.invoke(IPC_CHANNELS.AUTH_GET_SESSION),
+  },
+
   tunnels: {
     list: (): Promise<TunnelConfig[]> =>
       ipcRenderer.invoke(IPC_CHANNELS.TUNNELS_LIST),
@@ -88,9 +99,8 @@ const api = {
       isAvailable: (): Promise<{ available: boolean; error?: string }> =>
         ipcRenderer.invoke(IPC_CHANNELS.RDP_AVAILABLE),
 
-      launchNativeClient: (tunnelId: string): void => {
-        ipcRenderer.invoke(IPC_CHANNELS.LAUNCH_NATIVE_CLIENT, tunnelId);
-      },
+      launchNativeClient: (tunnelId: string): Promise<void> =>
+        ipcRenderer.invoke(IPC_CHANNELS.LAUNCH_NATIVE_CLIENT, tunnelId),
 
     connect: (tunnelId: string, width?: number, height?: number): Promise<boolean> =>
       ipcRenderer.invoke(IPC_CHANNELS.RDP_VIEW_CONNECT, tunnelId, width, height),

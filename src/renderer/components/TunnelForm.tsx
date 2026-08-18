@@ -58,22 +58,39 @@ export function TunnelForm({ tunnel, onSubmit, onCancel }: Props) {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
         {tunnel ? 'Edit Tunnel' : 'Add Tunnel'}
       </h2>
 
-      <Field label="Display Name">
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="My Work PC"
-          style={inputStyle}
-        />
-      </Field>
+      <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <Field label="Display Name" tooltip="A name just for you to recognize this server in the list — can be anything, e.g. the person or department it belongs to.">
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="My Work PC"
+              style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
+            />
+          </Field>
+        </div>
+        <div style={{ width: 100, flexShrink: 0 }}>
+          <Field label="Port" tooltip="Leave this at 3389 unless you were told otherwise — it's the standard Remote Desktop port and works for almost everyone.">
+            <input
+              type="number"
+              value={port}
+              onChange={(e) => setPort(parseInt(e.target.value) || 3389)}
+              placeholder="3389"
+              min={1}
+              max={65535}
+              style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
+            />
+          </Field>
+        </div>
+      </div>
 
-      <Field label="Cloudflare Tunnel Hostname">
+      <Field label="Cloudflare Tunnel Hostname" tooltip="The public address for this server's Cloudflare Tunnel — find it in the Cloudflare Zero Trust dashboard under Networks &gt; Tunnels. Not the server's real IP address.">
         <input
           type="text"
           value={hostname}
@@ -81,21 +98,29 @@ export function TunnelForm({ tunnel, onSubmit, onCancel }: Props) {
           placeholder="rdp-tunnel.example.com"
           style={{ ...inputStyle, fontFamily: 'monospace' }}
         />
+        {tunnel && (
+          <div
+            title={tunnel.serverName || undefined}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              marginTop: 4,
+              fontSize: 11,
+              fontFamily: 'monospace',
+              color: tunnel.serverName ? 'var(--accent-green)' : 'var(--text-muted)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: tunnel.serverName ? 'var(--accent-green)' : 'var(--text-muted)', flexShrink: 0 }} />
+            {tunnel.serverName ? `Detected: ${shortServerName(tunnel.serverName)}` : 'Server name not detected yet'}
+          </div>
+        )}
       </Field>
 
-      <Field label="Local RDP Port">
-        <input
-          type="number"
-          value={port}
-          onChange={(e) => setPort(parseInt(e.target.value) || 3389)}
-          placeholder="3389"
-          min={1}
-          max={65535}
-          style={{ ...inputStyle, width: 120 }}
-        />
-      </Field>
-
-      <Field label="Windows Username">
+      <Field label="Windows Username" tooltip="The Windows login for the remote computer, not your HRMS login. Use DOMAIN\\username or username@domain.com if the PC is on a company domain.">
         <input
           type="text"
           value={username}
@@ -105,31 +130,6 @@ export function TunnelForm({ tunnel, onSubmit, onCancel }: Props) {
         />
       </Field>
 
-      {tunnel && (
-        <Field label="Detected Server Name">
-          <div
-            title={tunnel.serverName || undefined}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '8px 12px',
-              fontSize: 13,
-              fontFamily: 'monospace',
-              background: 'var(--bg-tertiary)',
-              border: `1px solid ${tunnel.serverName ? 'rgba(16,185,129,0.4)' : 'var(--border-color)'}`,
-              borderRadius: 6,
-              color: tunnel.serverName ? 'var(--accent-green)' : 'var(--text-muted)',
-              minHeight: 32,
-            }}
-          >
-            {tunnel.serverName
-              ? shortServerName(tunnel.serverName)
-              : 'Not detected yet — appears after the first successful connection'}
-          </div>
-        </Field>
-      )}
-
       <Field
         label={
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
@@ -137,15 +137,28 @@ export function TunnelForm({ tunnel, onSubmit, onCancel }: Props) {
             {tunnel && (
               <span
                 style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
                   fontSize: 11,
                   fontWeight: 600,
                   color: password !== initialPassword ? 'var(--accent-amber)' : 'var(--accent-green)',
-                  background: password !== initialPassword ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)',
+                  background: password !== initialPassword ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.1)',
                   padding: '2px 6px',
-                  borderRadius: 4,
+                  borderRadius: 'var(--radius-xs)',
                 }}
               >
-                {password !== initialPassword ? '✎ Updating password' : '✓ Saved password'}
+                {password !== initialPassword ? (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                  </svg>
+                ) : (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                )}
+                {password !== initialPassword ? 'Updating password' : 'Saved password'}
               </span>
             )}
           </div>
@@ -223,11 +236,25 @@ const HideIcon = (
   </svg>
 );
 
-function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
+function Field({ label, children, tooltip }: { label: React.ReactNode; children: React.ReactNode; tooltip?: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        {label}
+        {tooltip ? (
+          <span
+            title={tooltip}
+            style={{
+              display: 'inline-block',
+              width: 'fit-content',
+              cursor: 'help',
+              borderBottom: '1px dashed var(--text-muted)',
+            }}
+          >
+            {label}
+          </span>
+        ) : (
+          label
+        )}
       </label>
       {children}
     </div>
@@ -236,32 +263,32 @@ function Field({ label, children }: { label: React.ReactNode; children: React.Re
 
 const inputStyle: React.CSSProperties = {
   padding: '8px 12px',
-  fontSize: 13,
+  fontSize: 14,
   background: 'var(--bg-secondary)',
   border: '1px solid var(--border-color)',
-  borderRadius: 6,
+  borderRadius: 'var(--radius-sm)',
   color: 'var(--text-primary)',
   outline: 'none',
   transition: 'border-color 0.15s',
 };
 
 const primaryBtnStyle: React.CSSProperties = {
-  padding: '8px 20px',
+  padding: '10px 20px',
   fontSize: 13,
   fontWeight: 600,
   border: 'none',
-  borderRadius: 6,
+  borderRadius: 'var(--radius-sm)',
   background: 'var(--accent-blue)',
   color: '#fff',
   cursor: 'pointer',
 };
 
 const secondaryBtnStyle: React.CSSProperties = {
-  padding: '8px 20px',
+  padding: '10px 20px',
   fontSize: 13,
   fontWeight: 500,
   border: '1px solid var(--border-color)',
-  borderRadius: 6,
+  borderRadius: 'var(--radius-sm)',
   background: 'transparent',
   color: 'var(--text-secondary)',
   cursor: 'pointer',

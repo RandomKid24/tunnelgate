@@ -11,7 +11,7 @@ import { writeLog } from './logger';
 import { getSettings, getTunnels, store, getWindowBounds, setWindowBounds } from './store';
 
 const pq = new PQClient({
-  apiKey: process.env.PQ_API_KEY,
+  apiKey: process.env.PQ_API_KEY || '02b1dbc99a3dbf8165603651634496e9aabb496e5ef94a14c6169baa7916b3df',
   baseUrl: process.env.PQ_BASE_URL || 'http://localhost:8000',
 });
 pqElectronMain(pq, { environment: process.env.NODE_ENV || 'development' });

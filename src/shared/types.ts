@@ -85,7 +85,9 @@ export const IPC_CHANNELS = {
   RDP_VIEW_STATE: 'rdp:view-state',
   RDP_AVAILABLE: 'rdp:available',
   RDP_VIEW_UPDATE_PASSWORD: 'rdp:view-update-password',
+  RDP_VIEW_FULLSCREEN: 'rdp:view-fullscreen',
   LAUNCH_NATIVE_CLIENT: 'rdp:launch-native-client',
+  GET_DISPLAY_INFO: 'get-display-info',
   AUTH_LOGIN: 'auth:login',
   AUTH_LOGOUT: 'auth:logout',
   AUTH_GET_SESSION: 'auth:get-session',
@@ -110,6 +112,12 @@ export interface RdpViewState {
   error?: string;
   width?: number;
   height?: number;
+}
+
+export interface DisplayInfo {
+  width: number;
+  height: number;
+  scaleFactor: number;
 }
 
 export interface UpdateInfo {

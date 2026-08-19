@@ -1,7 +1,8 @@
 import './bootstrap';
-import { app, BrowserWindow, Tray, Menu, nativeImage, screen } from 'electron';
+import { app, BrowserWindow, Tray, Menu, nativeImage, screen, ipcMain } from 'electron';
 import path from 'path';
 import fs from 'fs';
+import { IPC_CHANNELS, DisplayInfo } from '../shared/types';
 import { PQClient } from 'pq-befu';
 import { pqElectronMain } from 'pq-befu/integrations/electron';
 import { TunnelManager } from './tunnelManager';
@@ -135,6 +136,23 @@ function createTray(): void {
   tray.on('click', showMainWindow);
 
   registerIpcHandlers(tunnelManager, rdpViewManager);
+
+  ipcMain.handle(IPC_CHANNELS.GET_DISPLAY_INFO, (): DisplayInfo => {
+    const display = screen.getPrimaryDisplay();
+    return {
+      width: display.bounds.width,
+      height: display.bounds.height,
+      scaleFactor: display.scaleFactor,
+    };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.RDP_VIEW_FULLSCREEN, async () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return false;
+    const isFs = mainWindow.isFullScreen();
+    mainWindow.setFullScreen(!isFs);
+    return !isFs;
+  });
+
   updateTrayMenu();
 
   setInterval(updateTrayMenu, 2000);
@@ -215,6 +233,18 @@ function createMainWindow(): void {
   mainWindow.on('closed', () => {
     mainWindow = null;
     rdpViewManager?.setWindow(null);
+  });
+
+  mainWindow.on('enter-full-screen', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('rdp:fullscreen-change', true);
+    }
+  });
+
+  mainWindow.on('leave-full-screen', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('rdp:fullscreen-change', false);
+    }
   });
 }
 

@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { pqElectronPreload } from 'pq-befu/integrations/electron';
-import { IPC_CHANNELS, TunnelFormData, TunnelConfig, AppSettings, TunnelRuntimeState, LogEntry, UpdateInfo, HrmsSession, WifiStatusResult } from '../shared/types';
+import { IPC_CHANNELS, TunnelFormData, TunnelConfig, AppSettings, TunnelRuntimeState, LogEntry, UpdateInfo, HrmsSession, WifiStatusResult, DisplayInfo } from '../shared/types';
 
 pqElectronPreload();
 
@@ -135,6 +135,18 @@ const api = {
 
     updatePassword: (tunnelId: string, newPassword: string, width?: number, height?: number): Promise<boolean> =>
       ipcRenderer.invoke(IPC_CHANNELS.RDP_VIEW_UPDATE_PASSWORD, tunnelId, newPassword, width, height),
+
+    getDisplayInfo: (): Promise<DisplayInfo> =>
+      ipcRenderer.invoke(IPC_CHANNELS.GET_DISPLAY_INFO),
+
+    toggleFullscreen: (): Promise<boolean> =>
+      ipcRenderer.invoke(IPC_CHANNELS.RDP_VIEW_FULLSCREEN),
+
+    onFullscreenChange: (callback: (fullscreen: boolean) => void) => {
+      const handler = (_event: any, fullscreen: boolean) => callback(fullscreen);
+      ipcRenderer.on('rdp:fullscreen-change', handler);
+      return () => { ipcRenderer.removeListener('rdp:fullscreen-change', handler); };
+    },
   },
 };
 

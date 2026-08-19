@@ -78,10 +78,13 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
   const [canvasWidth, setCanvasWidth] = useState(DEFAULT_WIDTH);
   const [canvasHeight, setCanvasHeight] = useState(DEFAULT_HEIGHT);
   const [connectingStep, setConnectingStep] = useState('Initializing secure tunnel...');
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const active = tunnel?.runtime.status === 'connected';
   const passwordInputRef = useRef<HTMLInputElement>(null);
   const connectSizeRef = useRef({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
   const connectedRef = useRef(false);
+  const windowedSizeRef = useRef<{ width: number; height: number } | null>(null);
+  const reconnectingRef = useRef(false);
 
   useEffect(() => {
     if (status !== 'connecting') return;
@@ -172,6 +175,12 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
         const viewportH = Math.max(600, Math.round((window.innerHeight - 44) * dpr));
         const bestSize = getBestRdpSize(viewportW, viewportH);
         const { width, height } = (connectSizeRef.current.width > 800) ? connectSizeRef.current : bestSize;
+
+        // Save windowed resolution for fullscreen toggle restore
+        if (!isFullscreen) {
+          windowedSizeRef.current = { width, height };
+        }
+
         await window.cloudflareRdp.rdp.connect(tunnel.id, width, height);
         setCanvasWidth(width);
         setCanvasHeight(height);
@@ -234,6 +243,66 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
       passwordInputRef.current.focus();
     }
   }, [passwordUpdateRequired]);
+
+  // Listen for fullscreen changes from the main process and reconnect RDP at correct resolution
+  useEffect(() => {
+    const unsub = window.cloudflareRdp.rdp.onFullscreenChange(async (fullscreen: boolean) => {
+      setIsFullscreen(fullscreen);
+      if (!tunnel || !connectedRef.current || reconnectingRef.current) return;
+
+      reconnectingRef.current = true;
+      try {
+        // Disconnect current session
+        await window.cloudflareRdp.rdp.disconnect(tunnel.id);
+        connectedRef.current = false;
+
+        let newWidth: number;
+        let newHeight: number;
+
+        if (fullscreen) {
+          // Entering fullscreen: use native display resolution
+          const displayInfo = await window.cloudflareRdp.rdp.getDisplayInfo();
+          newWidth = Math.floor(displayInfo.width / 4) * 4;
+          newHeight = Math.floor(displayInfo.height / 4) * 4;
+        } else {
+          // Exiting fullscreen: restore windowed resolution
+          const saved = windowedSizeRef.current;
+          if (saved) {
+            newWidth = saved.width;
+            newHeight = saved.height;
+          } else {
+            const dpr = window.devicePixelRatio || 1;
+            newWidth = Math.floor((window.innerWidth * dpr) / 4) * 4;
+            newHeight = Math.floor(((window.innerHeight - 44) * dpr) / 4) * 4;
+          }
+        }
+
+        // Clamp to reasonable bounds
+        newWidth = Math.max(800, Math.min(3840, newWidth));
+        newHeight = Math.max(600, Math.min(2160, newHeight));
+
+        setStatus('connecting');
+        await window.cloudflareRdp.rdp.connect(tunnel.id, newWidth, newHeight);
+        setCanvasWidth(newWidth);
+        setCanvasHeight(newHeight);
+        connectedRef.current = true;
+        setStatus('connected');
+      } catch (err: any) {
+        const msg = formatIpcError(err, 'Failed to reconnect RDP');
+        if (isPasswordExpired(msg)) {
+          setPasswordUpdateRequired(true);
+          setStatus('disconnected');
+        } else {
+          setStatus('error');
+          setError(msg);
+        }
+      } finally {
+        reconnectingRef.current = false;
+      }
+    });
+
+    return () => unsub();
+  }, [tunnel?.id]);
 
   const handleBack = useCallback(() => {
     if (tunnel) {
@@ -362,9 +431,26 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
         </span>
         <div style={{ flex: 1 }} />
         {(status === 'connected' || status === 'error') && (
-          <button onClick={handleLaunchNativeClient} style={toolbarBtnStyle}>
-            Open Native Client
-          </button>
+          <>
+            <button
+              onClick={() => window.cloudflareRdp.rdp.toggleFullscreen()}
+              style={toolbarBtnStyle}
+              title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+            >
+              {isFullscreen ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                </svg>
+              )}
+            </button>
+            <button onClick={handleLaunchNativeClient} style={toolbarBtnStyle}>
+              Open Native Client
+            </button>
+          </>
         )}
       </div>
 

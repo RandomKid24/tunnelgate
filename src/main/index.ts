@@ -1,7 +1,6 @@
 import './bootstrap';
-import { app, BrowserWindow, Tray, Menu, nativeImage, screen, ipcMain } from 'electron';
+import { app, BrowserWindow, screen, ipcMain } from 'electron';
 import path from 'path';
-import fs from 'fs';
 import { IPC_CHANNELS, DisplayInfo } from '../shared/types';
 import { PQClient } from 'pq-befu';
 import { pqElectronMain } from 'pq-befu/integrations/electron';
@@ -9,7 +8,7 @@ import { TunnelManager } from './tunnelManager';
 import { RdpViewManager } from './rdpViewManager';
 import { registerIpcHandlers, sendStatusToRenderer, sendLogToRenderer } from './ipcHandlers';
 import { writeLog } from './logger';
-import { getSettings, getTunnels, store, getWindowBounds, setWindowBounds } from './store';
+import { getSettings, getWindowBounds, setWindowBounds } from './store';
 
 const pq = new PQClient({
   apiKey: process.env.PQ_API_KEY || '02b1dbc99a3dbf8165603651634496e9aabb496e5ef94a14c6169baa7916b3df',
@@ -26,137 +25,9 @@ process.on('unhandledRejection', (reason: any) => {
 });
 
 let mainWindow: BrowserWindow | null = null;
-let tray: Tray | null = null;
 let tunnelManager: TunnelManager | null = null;
 let rdpViewManager: RdpViewManager | null = null;
 let isQuitting = false;
-
-const PREVENT_WINDOW_CLOSE = true;
-
-function createTrayIcons(): { idle: Electron.NativeImage; connecting: Electron.NativeImage; connected: Electron.NativeImage; error: Electron.NativeImage } {
-  const logo = nativeImage.createFromPath(
-    path.join(__dirname, '../../resources/icons/16x16.png')
-  ).resize({ width: 16, height: 16 });
-  const size = logo.getSize();
-
-  function tinted(tint: [number, number, number]): Electron.NativeImage {
-    const raw = logo.toBitmap();
-    const pixels = Buffer.alloc(raw.length);
-    for (let i = 0; i < raw.length; i += 4) {
-      pixels[i]     = Math.round(raw[i]     * tint[2] / 255);  // B
-      pixels[i + 1] = Math.round(raw[i + 1] * tint[1] / 255);  // G
-      pixels[i + 2] = Math.round(raw[i + 2] * tint[0] / 255);  // R
-      pixels[i + 3] = raw[i + 3];                                // A
-    }
-    return nativeImage.createFromBuffer(pixels, size);
-  }
-
-  return {
-    idle: tinted([200, 200, 200]),
-    connecting: tinted([255, 191, 0]),
-    connected: tinted([0, 200, 83]),
-    error: tinted([244, 67, 54]),
-  };
-}
-
-function createTray(): void {
-  const icons = createTrayIcons();
-  tray = new Tray(icons.idle);
-  tray.setToolTip('TunnelGate - Disconnected');
-
-  const updateTrayMenu = () => {
-    if (!tray || !tunnelManager) return;
-
-    const tunnels = getTunnels();
-    const states = tunnelManager.getAllRuntimeStates();
-    const activeCount = tunnelManager.getActiveTunnelCount();
-
-    const iconKey = activeCount > 0 ? 'connected' : states.some((s) => s.status === 'error') ? 'error' : states.some((s) => s.status === 'connecting' || s.status === 'reconnecting') ? 'connecting' : 'idle';
-    const icons = createTrayIcons();
-    tray.setImage(icons[iconKey]);
-    tray.setToolTip(activeCount > 0 ? `TunnelGate - ${activeCount} tunnel${activeCount > 1 ? 's' : ''} active` : 'TunnelGate - Disconnected');
-
-    const menuItems: Electron.MenuItemConstructorOptions[] = [];
-
-    if (tunnels.length === 0) {
-      menuItems.push({ label: 'No tunnels configured', enabled: false });
-    } else {
-      for (const t of tunnels) {
-        const state = states.find((s) => s.tunnelId === t.id);
-        const isActive = state && (state.status === 'connected' || state.status === 'connecting' || state.status === 'reconnecting');
-        menuItems.push({
-          label: `${isActive ? '●' : '○'} ${t.name} (${state?.status ?? 'disconnected'})`,
-          submenu: [
-            {
-              label: isActive ? 'Disconnect' : 'Connect',
-              click: () => {
-                if (isActive) {
-                  tunnelManager?.disconnect(t.id);
-                } else {
-                  mainWindow?.webContents.send('tray-connect', t.id);
-                }
-              },
-            },
-          ],
-        });
-      }
-    }
-
-    menuItems.push(
-      { type: 'separator' },
-      {
-        label: 'Open Dashboard',
-        click: showMainWindow,
-      },
-      { type: 'separator' },
-      {
-        label: 'Quit',
-        click: () => {
-          isQuitting = true;
-          app.quit();
-        },
-      }
-    );
-
-    tray.setContextMenu(Menu.buildFromTemplate(menuItems));
-  };
-
-  tunnelManager = new TunnelManager(
-    (state) => {
-      sendStatusToRenderer(mainWindow, state);
-      updateTrayMenu();
-    },
-    (tunnelId, tunnelName, level, message) => {
-      sendLogToRenderer(mainWindow, tunnelId, tunnelName, level, message);
-    }
-  );
-
-  rdpViewManager = new RdpViewManager();
-
-  tray.on('click', showMainWindow);
-
-  registerIpcHandlers(tunnelManager, rdpViewManager);
-
-  ipcMain.handle(IPC_CHANNELS.GET_DISPLAY_INFO, (): DisplayInfo => {
-    const display = screen.getPrimaryDisplay();
-    return {
-      width: display.bounds.width,
-      height: display.bounds.height,
-      scaleFactor: display.scaleFactor,
-    };
-  });
-
-  ipcMain.handle(IPC_CHANNELS.RDP_VIEW_FULLSCREEN, async () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return false;
-    const isFs = mainWindow.isFullScreen();
-    mainWindow.setFullScreen(!isFs);
-    return !isFs;
-  });
-
-  updateTrayMenu();
-
-  setInterval(updateTrayMenu, 2000);
-}
 
 function getValidWindowBounds(): { x: number; y: number; width: number; height: number } | null {
   const saved = getWindowBounds();
@@ -211,11 +82,8 @@ function createMainWindow(): void {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
 
-  mainWindow.on('close', (event) => {
-    if (PREVENT_WINDOW_CLOSE && !isQuitting) {
-      event.preventDefault();
-      mainWindow?.hide();
-    }
+  mainWindow.on('close', () => {
+    isQuitting = true;
   });
 
   let saveBoundsTimer: NodeJS.Timeout | null = null;
@@ -270,7 +138,36 @@ if (!gotTheLock) {
     if (process.platform === 'win32') {
       app.setAppUserModelId('com.tunnelgate.app');
     }
-    createTray();
+
+    tunnelManager = new TunnelManager(
+      (state) => {
+        sendStatusToRenderer(mainWindow, state);
+      },
+      (tunnelId, tunnelName, level, message) => {
+        sendLogToRenderer(mainWindow, tunnelId, tunnelName, level, message);
+      }
+    );
+
+    rdpViewManager = new RdpViewManager();
+
+    registerIpcHandlers(tunnelManager, rdpViewManager);
+
+    ipcMain.handle(IPC_CHANNELS.GET_DISPLAY_INFO, (): DisplayInfo => {
+      const display = screen.getPrimaryDisplay();
+      return {
+        width: display.bounds.width,
+        height: display.bounds.height,
+        scaleFactor: display.scaleFactor,
+      };
+    });
+
+    ipcMain.handle(IPC_CHANNELS.RDP_VIEW_FULLSCREEN, async () => {
+      if (!mainWindow || mainWindow.isDestroyed()) return false;
+      const isFs = mainWindow.isFullScreen();
+      mainWindow.setFullScreen(!isFs);
+      return !isFs;
+    });
+
     createMainWindow();
 
     writeLog('system', 'System', 'info', 'TunnelGate started');
@@ -291,10 +188,7 @@ if (!gotTheLock) {
   });
 
   app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-      if (!isQuitting) return;
-      app.quit();
-    }
+    app.quit();
   });
 
   app.on('will-quit', () => {

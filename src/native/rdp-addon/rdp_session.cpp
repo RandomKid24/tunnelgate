@@ -280,15 +280,28 @@ bool RdpSession::connect() {
         freerdp_settings_set_string(settings, FreeRDP_Username, parsedUser);
       }
       if (parsedDomain && strlen(parsedDomain) > 0) {
+        // An explicit domain was typed (e.g. "CORP\user" or ".\user" for a
+        // deliberate local-account override) — honor it exactly as given.
         freerdp_settings_set_string(settings, FreeRDP_Domain, parsedDomain);
       } else {
-        freerdp_settings_set_string(settings, FreeRDP_Domain, ".");
+        // No domain prefix given (e.g. just "Administrator"). Leave the NTLM
+        // domain blank rather than forcing "." (local-machine-only auth):
+        // this field has flip-flopped between "" and "." across the project's
+        // history because a single hardcoded value can't be right for both a
+        // workgroup/local-account server and a domain-joined one — forcing "."
+        // causes STATUS_LOGON_FAILURE against domain-joined servers even
+        // though the same credential authenticates fine via mstsc.exe, which
+        // also leaves the domain unspecified in this case. Anyone who
+        // genuinely needs local-account-only auth can still force it
+        // explicitly by typing ".\username" in the Windows Username field —
+        // that's parsed as an explicit domain above and passed through as-is.
+        freerdp_settings_set_string(settings, FreeRDP_Domain, "");
       }
       fileLog((std::string("[RDP] parsed domain='") + (freerdp_settings_get_string(settings, FreeRDP_Domain) ? freerdp_settings_get_string(settings, FreeRDP_Domain) : "") + "' user='" + (parsedUser ? parsedUser : "") + "' from username='" + normUsername + "'").c_str());
       free(parsedUser);
       free(parsedDomain);
     } else {
-      freerdp_settings_set_string(settings, FreeRDP_Domain, ".");
+      freerdp_settings_set_string(settings, FreeRDP_Domain, "");
     }
     fileLog((std::string("[RDP] credentials: username='") + (freerdp_settings_get_string(settings, FreeRDP_Username) ? freerdp_settings_get_string(settings, FreeRDP_Username) : "") + "' domain='" + (freerdp_settings_get_string(settings, FreeRDP_Domain) ? freerdp_settings_get_string(settings, FreeRDP_Domain) : "") + "' password_len=" + std::to_string(password_.length())).c_str());
   }

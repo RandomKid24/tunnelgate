@@ -120,7 +120,7 @@ export function TunnelForm({ tunnel, onSubmit, onCancel }: Props) {
         )}
       </Field>
 
-      <Field label="Windows Username" tooltip="The Windows login for the remote computer, not your HRMS login. Use DOMAIN\\username or username@domain.com if the PC is on a company domain.">
+      <Field label="Windows Username" tooltip="The Windows login for the remote computer, not your HRMS login. Use DOMAIN\\username or username@domain.com if the PC is on a company domain. If it's a local (non-domain) account and login fails, try .\\username to force local-account authentication.">
         <input
           type="text"
           value={username}

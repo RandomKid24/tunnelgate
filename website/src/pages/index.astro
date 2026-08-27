@@ -1,0 +1,402 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const features = [
+  {
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
+    title: 'Built-in RDP viewer',
+    desc: 'FreeRDP 3 renders your remote desktop inside the app. No external client, no separate install.',
+  },
+  {
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
+    title: 'Zero Trust routing',
+    desc: 'All traffic goes through Cloudflare Zero Trust. Your IT team controls who connects and from where.',
+  },
+  {
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>`,
+    title: 'Dynamic resolution',
+    desc: "Matches your display. Fullscreen adapts to your screen's native aspect ratio — even 3:2 and 16:10 touchscreens.",
+  },
+  {
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
+    title: 'Auto-reconnect',
+    desc: 'Survives network blips with exponential backoff. Your session stays alive through WiFi switches and brief dropouts.',
+  },
+  {
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+    title: 'Encrypted credentials',
+    desc: 'Passwords stored with OS-level encryption — DPAPI on Windows, Keychain on macOS, libsecret on Linux. Never plaintext.',
+  },
+  {
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+    title: 'WiFi-gated access',
+    desc: 'Optionally restrict connections to approved office networks. HRMS-managed whitelist, enforced at connect time.',
+  },
+];
+
+const faqs = [
+  {
+    q: 'What does TunnelGate actually do?',
+    a: 'It bundles a Cloudflare tunnel client and an RDP viewer into one app. You add your server details once, click connect, and your remote desktop appears. No terminal commands, no separate tools.',
+  },
+  {
+    q: 'Do I need cloudflared or an RDP client installed separately?',
+    a: 'No. Everything is built in. The tunnel client and FreeRDP 3 engine ship with the app.',
+  },
+  {
+    q: 'How are my credentials stored?',
+    a: "Passwords are encrypted at rest using your operating system's built-in keychain — DPAPI on Windows, Keychain on macOS, libsecret on Linux. They're never logged or sent anywhere except the remote server during authentication.",
+  },
+  {
+    q: 'Which platforms are supported?',
+    a: 'Windows (x64), macOS (Apple Silicon), and Linux (x64). Downloads are available on the releases page.',
+  },
+  {
+    q: 'What happens if my connection drops?',
+    a: 'TunnelGate reconnects automatically with exponential backoff. Your session state is preserved and the viewer resumes when the connection comes back.',
+  },
+  {
+    q: 'Can I use my own RDP client instead?',
+    a: 'Yes. Every tunnel has an "Open Native Client" button that launches mstsc on Windows, Microsoft Remote Desktop on macOS, or xfreerdp on Linux — with your credentials pre-filled.',
+  },
+  {
+    q: 'How do I get TunnelGate?',
+    a: 'Download the installer for your platform from the releases page. You need a Cloudflare Zero Trust account and a remote machine that allows RDP.',
+  },
+];
+---
+
+<Layout title="TunnelGate — One-click RDP via Cloudflare Zero Trust">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-grid">
+        <div class="hero-text">
+          <h1>One-click RDP<br/>through <em>Cloudflare Zero Trust</em></h1>
+          <p>No terminals. No config files. Just add your server, click connect, and your remote desktop appears.</p>
+          <div class="hero-actions">
+            <a href="https://github.com/RandomKid24/cloudflareRDB-gui/releases/latest" class="btn btn-blue" target="_blank">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download v2.1.1
+            </a>
+            <a href="#setup" class="btn btn-ghost">Setup guide</a>
+          </div>
+          <div class="hero-platforms">
+            <span>macOS</span>
+            <span>Windows</span>
+            <span>Linux</span>
+          </div>
+        </div>
+        <div class="hero-terminal">
+          <div class="hero-terminal-bar">
+            <div class="hero-terminal-dot" style="background:#ef4444"></div>
+            <div class="hero-terminal-dot" style="background:#f59e0b"></div>
+            <div class="hero-terminal-dot" style="background:#22c55e"></div>
+            <span>TunnelGate</span>
+          </div>
+<pre><span class="term-line"><span class="prompt">$</span> <span class="cmd">tunnelgate</span></span>
+<span class="term-line"><span class="dim">Starting Cloudflare tunnel...</span></span>
+<span class="term-line"><span class="ok">✓</span> <span class="dim">Tunnel ready</span></span>
+<span class="term-line"><span class="ok">✓</span> <span class="dim">Connecting to</span> <span class="cmd">office-pc.acme.com</span></span>
+<span class="term-line"><span class="ok">✓</span> <span class="dim">RDP session active</span> <span class="ok">(1920×1080)</span></span>
+<span class="term-line"><span class="dim">Press</span> <span class="cmd">Esc</span> <span class="dim">to disconnect</span> <span class="term-cursor"></span></span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <div class="callout">
+    <div class="wrap">
+      <div class="callout-grid">
+        <div class="callout-stat reveal">
+          <div class="callout-num">1</div>
+          <div class="callout-label">Click to connect</div>
+        </div>
+        <div class="callout-stat reveal reveal-delay-1">
+          <div class="callout-num">3</div>
+          <div class="callout-label">Platforms supported</div>
+        </div>
+        <div class="callout-stat reveal reveal-delay-2">
+          <div class="callout-num">0</div>
+          <div class="callout-label">Plaintext secrets</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <section id="how-it-works">
+    <div class="wrap">
+      <div class="how-header reveal">
+        <div class="section-eyebrow">How it works</div>
+        <h2 class="section-heading">Four steps. No terminal required.</h2>
+      </div>
+      <div class="steps">
+        <div class="step reveal">
+          <div class="step-num">01</div>
+          <h3>Add your server</h3>
+          <p>Enter hostname, username, password. Encrypted and stored locally.</p>
+        </div>
+        <div class="step reveal reveal-delay-1">
+          <div class="step-num">02</div>
+          <h3>Click connect</h3>
+          <p>Cloudflare tunnel is created automatically. No command line needed.</p>
+        </div>
+        <div class="step reveal reveal-delay-2">
+          <div class="step-num">03</div>
+          <h3>View your desktop</h3>
+          <p>Remote desktop appears in the app. Full keyboard, mouse, and fullscreen.</p>
+        </div>
+        <div class="step reveal reveal-delay-3">
+          <div class="step-num">04</div>
+          <h3>Press Esc</h3>
+          <p>Clean disconnect tears down the tunnel and frees resources.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SETUP -->
+  <section class="setup" id="setup">
+    <div class="wrap">
+      <div class="setup-grid">
+        <div class="reveal">
+          <div class="section-eyebrow">Prerequisites</div>
+          <h2 class="section-heading" style="margin-bottom:24px">What you need before installing</h2>
+          <div class="prereq-card">
+            <h3>Before you start</h3>
+            <ul class="prereq-list">
+              <li>
+                <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+                <span><strong style="color:var(--ink)">A Cloudflare Zero Trust account.</strong> Sign up free at <a href="https://one.dash.cloudflare.com" target="_blank">one.dash.cloudflare.com</a>. You'll need to create a team name and enable Zero Trust.</span>
+              </li>
+              <li>
+                <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+                <span><strong style="color:var(--ink)">A remote Windows machine with RDP enabled.</strong> Go to System Settings → Remote Desktop → Enable. Note the machine's hostname.</span>
+              </li>
+              <li>
+                <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+                <span><strong style="color:var(--ink)">Your Windows login credentials.</strong> The username and password you use to log into the remote machine.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="reveal reveal-delay-1">
+          <div class="section-eyebrow">Setup steps</div>
+          <h2 class="section-heading" style="margin-bottom:24px">Get running in 5 minutes</h2>
+          <div class="setup-steps">
+            <div class="setup-step">
+              <div class="setup-step-num">1</div>
+              <div class="setup-step-content">
+                <h4>Download TunnelGate</h4>
+                <p>Grab the installer for your platform from the <a href="https://github.com/RandomKid24/cloudflareRDB-gui/releases/latest" target="_blank">releases page</a>. Windows gets an .exe, macOS a .dmg, Linux an AppImage or .deb.</p>
+              </div>
+            </div>
+            <div class="setup-step">
+              <div class="setup-step-num">2</div>
+              <div class="setup-step-content">
+                <h4>Install and sign in</h4>
+                <p>Run the installer, open TunnelGate, and sign in with your HRMS credentials. This authenticates you against your company's access policy.</p>
+              </div>
+            </div>
+            <div class="setup-step">
+              <div class="setup-step-num">3</div>
+              <div class="setup-step-content">
+                <h4>Add your server</h4>
+                <p>Click "Add Tunnel" and enter your remote machine's <code>hostname</code>, your Windows <code>username</code>, and <code>password</code>. Give it a friendly name.</p>
+              </div>
+            </div>
+            <div class="setup-step">
+              <div class="setup-step-num">4</div>
+              <div class="setup-step-content">
+                <h4>Connect</h4>
+                <p>Hit connect. TunnelGate creates a Cloudflare tunnel, authenticates, and opens your remote desktop — all in one click.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section class="arch" id="architecture">
+    <div class="wrap">
+      <div class="arch-grid">
+        <div class="reveal">
+          <div class="section-eyebrow">Under the hood</div>
+          <h2 class="section-heading">Your IT team stays in control</h2>
+          <p class="section-sub" style="margin-bottom:20px">Every connection goes through Cloudflare Zero Trust. Access is gated by HRMS login and optionally restricted to approved office WiFi networks. The tunnel encrypts traffic end-to-end — nothing touches the public internet.</p>
+          <p class="section-sub">Credentials never leave your machine. Passwords are encrypted with OS-level keychains and only sent to the remote server during RDP authentication.</p>
+        </div>
+        <div class="reveal reveal-delay-1">
+          <div class="arch-diagram">
+            <!-- Local machine box -->
+            <div class="arch-box arch-local">
+              <div class="arch-label">Your machine</div>
+              <div class="arch-internal">
+                <div class="arch-component arch-ui">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                  React UI
+                </div>
+                <div class="arch-ipc">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                  <span>IPC</span>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </div>
+                <div class="arch-component arch-main">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4m0 14v4m-8.66-2.34 2.83-2.83m11.66-5.66 2.83-2.83M1 12h4m14 0h4m-2.34-8.66-2.83 2.83M7.17 16.17l-2.83 2.83"/></svg>
+                  Electron Main
+                </div>
+              </div>
+              <div class="arch-internal arch-sub">
+                <div class="arch-component arch-rdp">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                  FreeRDP 3
+                </div>
+                <div class="arch-component arch-tunnel">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg>
+                  cloudflared
+                </div>
+              </div>
+            </div>
+
+            <!-- Arrow down -->
+            <div class="arch-arrow">
+              <div class="arch-arrow-line"></div>
+              <div class="arch-arrow-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                TLS 443
+              </div>
+              <div class="arch-arrow-line"></div>
+            </div>
+
+            <!-- Cloudflare box -->
+            <div class="arch-box arch-cloud">
+              <div class="arch-label">Cloudflare Edge</div>
+              <div class="arch-component arch-zt">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Zero Trust
+              </div>
+            </div>
+
+            <!-- Arrow down -->
+            <div class="arch-arrow">
+              <div class="arch-arrow-line"></div>
+              <div class="arch-arrow-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Encrypted
+              </div>
+              <div class="arch-arrow-line"></div>
+            </div>
+
+            <!-- Server box -->
+            <div class="arch-box arch-server">
+              <div class="arch-label">Your RDP Server</div>
+              <div class="arch-component arch-rdp-srv">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+                RDP 3389
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <div class="wrap">
+      <div class="how-header reveal">
+        <div class="section-eyebrow">Features</div>
+        <h2 class="section-heading">Everything you need. Nothing you don't.</h2>
+      </div>
+      <div class="features">
+        {features.map((f, i) => (
+          <div class={`feature reveal ${i % 2 === 1 ? 'reveal-delay-1' : ''}`}>
+            <div class="feature-icon" set:html={f.icon} />
+            <h3>{f.title}</h3>
+            <p>{f.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- SCREENSHOTS -->
+  <section class="screenshots" id="screenshots">
+    <div class="wrap">
+      <div class="how-header reveal">
+        <div class="section-eyebrow">See it in action</div>
+        <h2 class="section-heading">Dark, focused, no distractions</h2>
+      </div>
+      <div class="ss-grid">
+        <div class="ss-card reveal">
+          <div class="ss-placeholder">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <span>screenshot: dashboard</span>
+          </div>
+        </div>
+        <div class="ss-card reveal reveal-delay-1">
+          <div class="ss-placeholder">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>
+            <span>screenshot: fullscreen rdp</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq">
+    <div class="wrap">
+      <div class="how-header reveal" style="text-align:center">
+        <div class="section-eyebrow">FAQ</div>
+        <h2 class="section-heading">Common questions</h2>
+      </div>
+      <div class="faq-list reveal">
+        {faqs.map((faq) => (
+          <div class="faq-item" data-open="false">
+            <button class="faq-q" onclick="this.parentElement.setAttribute('data-open', this.parentElement.getAttribute('data-open')==='true'?'false':'true')">
+              {faq.q}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="faq-a"><p>{faq.a}</p></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <div class="cta-bottom">
+    <div class="wrap reveal">
+      <h2>Ready to connect?</h2>
+      <p>Works with your Cloudflare Zero Trust account.</p>
+      <a href="https://github.com/RandomKid24/cloudflareRDB-gui/releases/latest" class="btn btn-blue" target="_blank">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download
+      </a>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="wrap">
+      <div class="footer-inner">
+        <div class="footer-left">
+          <img src="/logo.png" alt="TunnelGate" />
+          TunnelGate &middot; forged by beforth
+        </div>
+        <ul class="footer-links">
+          <li><a href="https://github.com/RandomKid24/cloudflareRDB-gui" target="_blank">GitHub</a></li>
+          <li><a href="https://github.com/RandomKid24/cloudflareRDB-gui/issues" target="_blank">Issues</a></li>
+          <li><a href="https://github.com/RandomKid24/cloudflareRDB-gui/releases" target="_blank">Releases</a></li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+</Layout>

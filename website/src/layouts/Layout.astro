@@ -1,0 +1,47 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description = 'One-click RDP through Cloudflare Zero Trust Tunnel. No terminals. No config files. Just connect.' } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="stylesheet" href="/styles/global.css" />
+  </head>
+  <body>
+    <nav>
+      <div class="nav-inner">
+        <a href="/" class="nav-brand">
+          <img src="/logo.png" alt="TunnelGate" />
+          TunnelGate
+        </a>
+        <ul class="nav-links">
+          <li><a href="#how-it-works">How it works</a></li>
+          <li><a href="#setup">Setup</a></li>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#faq">FAQ</a></li>
+        </ul>
+        <a href="https://github.com/RandomKid24/cloudflareRDB-gui/releases" class="nav-cta" target="_blank">Download</a>
+      </div>
+    </nav>
+    <slot />
+    <script>
+      const observer = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        }
+      }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+      document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+    </script>
+  </body>
+</html>

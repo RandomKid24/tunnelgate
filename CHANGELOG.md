@@ -4,6 +4,11 @@ All notable changes to TunnelGate.
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-08-27
+
+### Fixed
+- RDP logon failures (`STATUS_LOGON_FAILURE`, FreeRDP code `131092`) against domain-joined servers when the Windows Username field had no `DOMAIN\` prefix. The native RDP addon (`rdp_session.cpp`) was forcing the NTLM domain to the literal `"."` (local-machine-only auth) whenever no domain was specified — this field had flip-flopped between `""` and `"."` several times across the project's history because a single hardcoded default can't be right for both a workgroup/local-account server and a domain-joined one. Confirmed via real-world logs: the exact same injected credential failed through the in-app FreeRDP viewer but succeeded through `mstsc.exe`, which leaves the domain unspecified in this case. Domain now defaults to blank (matching `mstsc`'s behavior) when none is given; anyone who genuinely needs local-account-only auth can still force it by typing `.\username` explicitly in the Windows Username field.
+
 ## [2.1.0] - 2026-08-18
 
 ### Added

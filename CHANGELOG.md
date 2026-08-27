@@ -4,6 +4,14 @@ All notable changes to TunnelGate.
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-08-27
+
+### Fixed
+- The app no longer leaves the user stuck on a "session has expired, log in again" error banner — `useTunnels` now signs the user out automatically when a connect attempt fails for that reason, so the Login screen comes back up on its own instead of requiring a manual sign-out first.
+
+### Changed
+- `native/wifi-native/build/` (generated build output) is now gitignored, matching `native/rdp-addon/build/` — it had been accidentally tracked, which was inflating diffs with machine-specific build artifacts.
+
 ## [2.1.1] - 2026-08-27
 
 ### Fixed

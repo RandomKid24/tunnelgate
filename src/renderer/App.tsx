@@ -51,7 +51,7 @@ function App() {
     () => sessionStorage.getItem('update-banner-dismissed') === '1',
   );
   const { session, loading: authLoading, login, logout } = useAuth();
-  const { tunnels, loading, errors, add, update, remove, connect, disconnect, reload } = useTunnels();
+  const { tunnels, loading, errors, add, update, remove, connect, disconnect, reload } = useTunnels(logout);
   const updateInfo = useUpdateCheck();
 
   const navItems: { id: Tab; label: string; icon: React.ReactNode }[] = [

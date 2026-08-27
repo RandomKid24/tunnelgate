@@ -6,7 +6,7 @@ export interface TunnelWithState extends TunnelConfig {
   runtime: TunnelRuntimeState;
 }
 
-export function useTunnels() {
+export function useTunnels(onAuthExpired?: () => void) {
   const [tunnels, setTunnels] = useState<TunnelWithState[]>([]);
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -118,7 +118,8 @@ export function useTunnels() {
     try {
       await window.cloudflareRdp.tunnels.connect(tunnelId);
     } catch (err: any) {
-      setErrors((prev) => ({ ...prev, [tunnelId]: formatIpcError(err) }));
+      const message = formatIpcError(err);
+      setErrors((prev) => ({ ...prev, [tunnelId]: message }));
       setTunnels((prev) =>
         prev.map((t) =>
           t.id === tunnelId && t.runtime.status === 'connecting'
@@ -126,6 +127,14 @@ export function useTunnels() {
             : t
         )
       );
+      // The main process throws this exact phrasing when the HRMS session is
+      // missing or its stored token has gone stale — rather than leave the
+      // user staring at a red banner that tells them to "log in again"
+      // without actually doing it, sign them out so the Login screen comes
+      // back up on its own.
+      if (/log in again|not logged in/i.test(message)) {
+        onAuthExpired?.();
+      }
     } finally {
       setConnectingTunnels((prev) => {
         const next = new Set(prev);
@@ -133,7 +142,7 @@ export function useTunnels() {
         return next;
       });
     }
-  }, []);
+  }, [onAuthExpired]);
 
   const disconnect = useCallback(async (tunnelId: string) => {
     await window.cloudflareRdp.tunnels.disconnect(tunnelId);

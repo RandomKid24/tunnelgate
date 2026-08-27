@@ -7,3 +7,4 @@ Thumbs.db
 *.log
 native/rdp-addon/build/
 src/native/rdp-addon/build/
+native/wifi-native/build/

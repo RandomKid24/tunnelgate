@@ -486,6 +486,22 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
 
   ipcMain.handle(IPC_CHANNELS.LAUNCH_NATIVE_CLIENT, async (_event, tunnelId: string) => {
     await checkWifiGate();
+
+    // If the in-app FreeRDP viewer is still holding a live session on this
+    // tunnel, tear it down before handing off to mstsc/native client. Many
+    // target machines (a plain Windows 10/11 box, or a Server without the
+    // RDS role licensed for multiple sessions) only support ONE remote
+    // session at a time — launching mstsc while our own FreeRDP session is
+    // still open collides with it and the server refuses the second
+    // connection ("...you already have a console session in progress").
+    // The brief pause gives the server time to actually release the slot;
+    // disconnectView() closing our socket doesn't guarantee the server has
+    // finished tearing the session down by the time it returns.
+    if (rdpViewManager) {
+      rdpViewManager.disconnectView(tunnelId);
+      await new Promise((resolve) => setTimeout(resolve, 800));
+    }
+
     tunnelManager.launchNativeClient(tunnelId);
   });
 

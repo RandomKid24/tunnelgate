@@ -7,6 +7,7 @@ All notable changes to TunnelGate.
 ## [2.1.2] - 2026-08-27
 
 ### Fixed
+- "Use Native Client" from within the in-app RDP viewer could fail with Windows' `Your computer could not connect to another console session... you already have a console session in progress` — the in-app FreeRDP session was still live and holding the target machine's one available session slot when `mstsc.exe` tried to open a second one. `LAUNCH_NATIVE_CLIENT` now disconnects the FreeRDP view first (with a brief pause for the server to actually release the slot) before launching the native client.
 - The app no longer leaves the user stuck on a "session has expired, log in again" error banner — `useTunnels` now signs the user out automatically when a connect attempt fails for that reason, so the Login screen comes back up on its own instead of requiring a manual sign-out first.
 
 ### Changed

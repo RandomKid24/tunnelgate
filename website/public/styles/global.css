@@ -398,6 +398,38 @@ section { padding: 96px 0; }
 .setup-step-content a {
   font-size: 13px;
 }
+.setup-step-content .dl-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.setup-step-content .dl-list li {
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.6;
+  padding-left: 14px;
+  position: relative;
+}
+.setup-step-content .dl-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--blue);
+}
+.setup-step-content .dl-list li strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.setup-step-content .dl-list + p {
+  margin-top: 10px;
+}
 /* connector line */
 .setup-step:not(:last-child)::before {
   content: '';

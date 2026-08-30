@@ -37,11 +37,11 @@ const features = [
 const faqs = [
   {
     q: 'What does TunnelGate actually do?',
-    a: 'It bundles a Cloudflare tunnel client and an RDP viewer into one app. You add your server details once, click connect, and your remote desktop appears. No terminal commands, no separate tools.',
+    a: 'It drives the Cloudflare tunnel client and a built-in RDP viewer from one app. You add your server details once, click connect, and your remote desktop appears — no terminal commands.',
   },
   {
     q: 'Do I need cloudflared or an RDP client installed separately?',
-    a: 'No. Everything is built in. The tunnel client and FreeRDP 3 engine ship with the app.',
+    a: "The RDP viewer is built in — FreeRDP 3 ships with the app, no separate client. You do need cloudflared installed once: brew install cloudflared on macOS, apt install cloudflared on Linux, or a small .msi on Windows. TunnelGate detects it automatically on your PATH, or you can point to it in Settings.",
   },
   {
     q: 'How are my credentials stored?',
@@ -61,7 +61,7 @@ const faqs = [
   },
   {
     q: 'How do I get TunnelGate?',
-    a: 'Download the installer for your platform from the releases page. You need a Cloudflare Zero Trust account and a remote machine that allows RDP.',
+    a: 'Download the installer for your platform from the releases page, then install cloudflared (one command, or a small .msi on Windows). You also need a Cloudflare Zero Trust account and a remote machine that allows RDP.',
   },
 ];
 ---
@@ -180,6 +180,10 @@ const faqs = [
                 <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
                 <span><strong style="color:var(--ink)">Your Windows login credentials.</strong> The username and password you use to log into the remote machine.</span>
               </li>
+              <li>
+                <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+                <span><strong style="color:var(--ink)">cloudflared installed.</strong> One command on macOS/Linux (<code>brew install cloudflared</code> / <code>apt install cloudflared</code>) or a small <a href="https://github.com/cloudflare/cloudflared/releases/latest" target="_blank">.msi</a> on Windows. Step 2 walks through it.</span>
+              </li>
             </ul>
           </div>
         </div>
@@ -191,25 +195,43 @@ const faqs = [
               <div class="setup-step-num">1</div>
               <div class="setup-step-content">
                 <h4>Download TunnelGate</h4>
-                <p>Grab the installer for your platform from the <a href="https://github.com/RandomKid24/cloudflareRDB-gui/releases/latest" target="_blank">releases page</a>. Windows gets an .exe, macOS a .dmg, Linux an AppImage or .deb.</p>
+                <p>Open the <a href="https://github.com/RandomKid24/cloudflareRDB-gui/releases/latest" target="_blank">releases page</a> and grab the file for your platform:</p>
+                <ul class="dl-list">
+                  <li><strong>Windows</strong> — <code>TunnelGate-Setup-x64.exe</code>, then run it</li>
+                  <li><strong>macOS</strong> (Apple Silicon) — <code>TunnelGate-arm64.dmg</code>, then drag to Applications</li>
+                  <li><strong>Linux</strong> — <code>TunnelGate-x64.AppImage</code> (<code>chmod +x</code> and run) or the <code>.deb</code></li>
+                </ul>
               </div>
             </div>
             <div class="setup-step">
               <div class="setup-step-num">2</div>
+              <div class="setup-step-content">
+                <h4>Install cloudflared</h4>
+                <p>TunnelGate uses Cloudflare's <code>cloudflared</code> to open the tunnel. Install it once — TunnelGate finds it automatically on your <code>PATH</code>:</p>
+                <ul class="dl-list">
+                  <li><strong>Windows</strong> — download <a href="https://github.com/cloudflare/cloudflared/releases/latest" target="_blank">cloudflared-windows-amd64.msi</a> and run it, or <code>winget install --id Cloudflare.cloudflared</code></li>
+                  <li><strong>macOS</strong> — <code>brew install cloudflared</code></li>
+                  <li><strong>Linux</strong> — <code>sudo apt install cloudflared</code> (or download the <code>.deb</code> from Cloudflare)</li>
+                </ul>
+                <p>If it lands somewhere unusual, set the full path in TunnelGate → Settings → cloudflared path.</p>
+              </div>
+            </div>
+            <div class="setup-step">
+              <div class="setup-step-num">3</div>
               <div class="setup-step-content">
                 <h4>Install and sign in</h4>
                 <p>Run the installer, open TunnelGate, and sign in with your HRMS credentials. This authenticates you against your company's access policy.</p>
               </div>
             </div>
             <div class="setup-step">
-              <div class="setup-step-num">3</div>
+              <div class="setup-step-num">4</div>
               <div class="setup-step-content">
                 <h4>Add your server</h4>
                 <p>Click "Add Tunnel" and enter your remote machine's <code>hostname</code>, your Windows <code>username</code>, and <code>password</code>. Give it a friendly name.</p>
               </div>
             </div>
             <div class="setup-step">
-              <div class="setup-step-num">4</div>
+              <div class="setup-step-num">5</div>
               <div class="setup-step-content">
                 <h4>Connect</h4>
                 <p>Hit connect. TunnelGate creates a Cloudflare tunnel, authenticates, and opens your remote desktop — all in one click.</p>

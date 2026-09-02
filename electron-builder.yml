@@ -3,6 +3,10 @@ productName: TunnelGate
 npmRebuild: false
 beforePack: build/beforePack.js
 afterPack: build/afterPack.mac.js
+# Stable, version-less artifact names so the website can link straight at
+# github.com/<repo>/releases/latest/download/<name> and always hit the newest
+# build. NSIS overrides this with a "-Setup-" name (see the nsis: block).
+artifactName: ${productName}-${arch}.${ext}
 directories:
   output: release
   buildResources: resources
@@ -78,4 +82,5 @@ nsis:
   allowToChangeInstallationDirectory: true
   deleteAppDataOnUninstall: false
   createDesktopShortcut: true
+  artifactName: ${productName}-Setup-${arch}.${ext}
 publish: null

@@ -1,11 +1,32 @@
 ---
 import Layout from '../layouts/Layout.astro';
 
+// Direct installer links. electron-builder emits these exact, version-less
+// names (see electron-builder.yml `artifactName`); GitHub's /releases/latest/
+// download/<name> URL always resolves to the newest published release.
+const REPO = 'https://github.com/RandomKid24/cloudflareRDB-gui';
+const DL = `${REPO}/releases/latest/download`;
+const downloads = {
+  win: `${DL}/TunnelGate-Setup-x64.exe`,
+  mac: `${DL}/TunnelGate-arm64.dmg`,
+  linux: `${DL}/TunnelGate-x64.AppImage`,
+};
+
 const features = [
   {
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
     title: 'Built-in RDP viewer',
-    desc: 'FreeRDP 3 renders your remote desktop inside the app. No external client, no separate install.',
+    desc: 'FreeRDP 3 renders your remote desktop right inside the app — full keyboard, mouse, wheel and fullscreen.',
+  },
+  {
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
+    title: 'Nothing to install',
+    desc: 'The Cloudflare tunnel client and the RDP engine ship inside TunnelGate. One installer, no dependencies, no PATH setup.',
+  },
+  {
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6"/><path d="M9 16h4"/></svg>`,
+    title: 'Copy / paste that works',
+    desc: 'Text clipboard syncs both ways between your machine and the remote session — the same as your usual RDP client.',
   },
   {
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
@@ -44,6 +65,14 @@ const faqs = [
     a: 'No. Both are bundled inside TunnelGate — the Cloudflare tunnel client (cloudflared) and the FreeRDP 3 engine ship with the app and are kept up to date with it. You can still point Settings at your own cloudflared build if you need to.',
   },
   {
+    q: 'Does copy and paste work?',
+    a: 'Yes — text copies both directions between your computer and the remote session, automatically, like your usual RDP client. Files, printers and audio are not redirected.',
+  },
+  {
+    q: 'How do I disconnect?',
+    a: 'Click the "← Back" button in the session toolbar. Esc is not a disconnect key — it goes to the remote desktop, or exits fullscreen when you are fullscreen.',
+  },
+  {
     q: 'How are my credentials stored?',
     a: "Passwords are encrypted at rest using your operating system's built-in keychain — DPAPI on Windows, Keychain on macOS, libsecret on Linux. They're never logged or sent anywhere except the remote server during authentication.",
   },
@@ -76,16 +105,24 @@ const faqs = [
           <h1>One-click RDP<br/>through <em>Cloudflare Zero Trust</em></h1>
           <p>No terminals. No config files. Just add your server, click connect, and your remote desktop appears.</p>
           <div class="hero-actions">
-            <a href="https://github.com/RandomKid24/cloudflareRDB-gui/releases/latest" class="btn btn-blue" target="_blank">
+            <a
+              id="dl-primary"
+              href={downloads.win}
+              data-win={downloads.win}
+              data-mac={downloads.mac}
+              data-linux={downloads.linux}
+              class="btn btn-blue"
+            >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Download v2.1.1
+              <span id="dl-primary-label">Download for Windows</span>
             </a>
             <a href="#setup" class="btn btn-ghost">Setup guide</a>
           </div>
           <div class="hero-platforms">
-            <span>macOS</span>
-            <span>Windows</span>
-            <span>Linux</span>
+            <a href={downloads.mac}>macOS</a>
+            <a href={downloads.win}>Windows</a>
+            <a href={downloads.linux}>Linux</a>
+            <a href={`${REPO}/releases`} target="_blank" rel="noopener">all versions ↗</a>
           </div>
         </div>
         <div class="hero-terminal">
@@ -100,6 +137,7 @@ const faqs = [
 <span class="term-line"><span class="ok">✓</span> <span class="dim">Tunnel ready</span></span>
 <span class="term-line"><span class="ok">✓</span> <span class="dim">Connecting to</span> <span class="cmd">office-pc.acme.com</span></span>
 <span class="term-line"><span class="ok">✓</span> <span class="dim">RDP session active</span> <span class="ok">(1920×1080)</span></span>
+<span class="term-line"><span class="ok">✓</span> <span class="dim">Clipboard sync ready</span></span>
 <span class="term-line"><span class="dim">Click</span> <span class="cmd">← Back</span> <span class="dim">to disconnect</span> <span class="term-cursor"></span></span></pre>
         </div>
       </div>
@@ -192,11 +230,11 @@ const faqs = [
               <div class="setup-step-num">1</div>
               <div class="setup-step-content">
                 <h4>Download TunnelGate</h4>
-                <p>Open the <a href="https://github.com/RandomKid24/cloudflareRDB-gui/releases/latest" target="_blank">releases page</a> and grab the file for your platform:</p>
+                <p>Grab the installer for your platform — each link always pulls the latest release:</p>
                 <ul class="dl-list">
-                  <li><strong>Windows</strong> — <code>TunnelGate-Setup-x64.exe</code>, then run it</li>
-                  <li><strong>macOS</strong> (Apple Silicon) — <code>TunnelGate-arm64.dmg</code>, then drag to Applications</li>
-                  <li><strong>Linux</strong> — <code>TunnelGate-x64.AppImage</code> (<code>chmod +x</code> and run) or the <code>.deb</code></li>
+                  <li><strong>Windows</strong> — <a href={downloads.win}>TunnelGate-Setup-x64.exe</a>, then run it</li>
+                  <li><strong>macOS</strong> (Apple Silicon) — <a href={downloads.mac}>TunnelGate-arm64.dmg</a>, then drag to Applications</li>
+                  <li><strong>Linux</strong> — <a href={downloads.linux}>TunnelGate-x64.AppImage</a> (<code>chmod +x</code> and run), or the <code>.deb</code> from the <a href={`${REPO}/releases/latest`} target="_blank" rel="noopener">releases page</a></li>
                 </ul>
                 <p>The Cloudflare tunnel client is already inside — there's nothing else to install.</p>
               </div>
@@ -382,10 +420,22 @@ const faqs = [
     <div class="wrap reveal">
       <h2>Ready to connect?</h2>
       <p>Works with your Cloudflare Zero Trust account.</p>
-      <a href="https://github.com/RandomKid24/cloudflareRDB-gui/releases/latest" class="btn btn-blue" target="_blank">
+      <a
+        id="dl-cta"
+        href={downloads.win}
+        data-win={downloads.win}
+        data-mac={downloads.mac}
+        data-linux={downloads.linux}
+        class="btn btn-blue"
+      >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Download
+        <span id="dl-cta-label">Download for Windows</span>
       </a>
+      <div class="cta-alt">
+        <a href={downloads.mac}>macOS</a> ·
+        <a href={downloads.linux}>Linux</a> ·
+        <a href={`${REPO}/releases`} target="_blank" rel="noopener">all versions</a>
+      </div>
     </div>
   </div>
 
@@ -405,5 +455,26 @@ const faqs = [
       </div>
     </div>
   </footer>
+
+  <script is:inline>
+    // Point the primary Download buttons at the visitor's OS. Falls back to the
+    // Windows link already in the href, so it works with JS disabled too.
+    (function () {
+      var ua = navigator.userAgent || '';
+      var p = (navigator.platform || '') + ' ' + ua;
+      var os = /Mac|iPhone|iPad|iPod/i.test(p) ? 'mac'
+             : /Linux|X11|Ubuntu|Fedora|CrOS/i.test(p) && !/Android/i.test(ua) ? 'linux'
+             : 'win';
+      var label = { win: 'Download for Windows', mac: 'Download for macOS', linux: 'Download for Linux' }[os];
+      ['dl-primary', 'dl-cta'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var url = el.getAttribute('data-' + os);
+        if (url) el.setAttribute('href', url);
+        var span = document.getElementById(id + '-label');
+        if (span) span.textContent = label;
+      });
+    })();
+  </script>
 
 </Layout>

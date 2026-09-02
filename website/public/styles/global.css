@@ -181,14 +181,22 @@ section { padding: 96px 0; }
 .hero-platforms {
   margin-top: 24px;
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
+  align-items: center;
 }
-.hero-platforms span {
+.hero-platforms a {
   font-size: 12px;
   color: var(--ink-3);
   padding: 4px 10px;
   border: 1px solid var(--hairline);
   border-radius: 6px;
+  text-decoration: none;
+  transition: color 0.15s, border-color 0.15s;
+}
+.hero-platforms a:hover {
+  color: var(--ink);
+  border-color: var(--ink-3);
 }
 
 /* hero terminal */
@@ -743,6 +751,14 @@ section { padding: 96px 0; }
   font-size: 15px;
   color: var(--ink-2);
   margin-bottom: 28px;
+}
+.cta-alt {
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.cta-alt a {
+  color: var(--ink-2);
 }
 
 /* ── FOOTER ── */

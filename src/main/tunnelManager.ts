@@ -1,11 +1,11 @@
 import { ChildProcess, spawn } from 'child_process';
 import { createServer } from 'net';
-import path from 'path';
 import treeKill from 'tree-kill';
 import { TunnelConfig, TunnelRuntimeState, TunnelStatus } from '../shared/types';
 import { writeLog } from './logger';
 import { credentialStore } from './credentialStore';
 import { getSettings } from './store';
+import { resolveCloudflared } from './cloudflaredResolver';
 
 const isWin = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
@@ -21,10 +21,6 @@ function findFreePort(preferred: number): Promise<number> {
       resolve(findFreePort(preferred + 1));
     });
   });
-}
-
-function getCloudflaredName(): string {
-  return isWin ? 'cloudflared.exe' : 'cloudflared';
 }
 
 interface ManagedTunnel {
@@ -65,54 +61,12 @@ export class TunnelManager {
 
   private async findCloudflared(): Promise<string | null> {
     const settings = getSettings();
-    if (settings.cloudflaredPath) {
-      return settings.cloudflaredPath;
-    }
-
-    const binName = getCloudflaredName();
-    const commonPaths: string[] = [];
-
-    if (isWin) {
-      commonPaths.push(
-        process.env.LOCALAPPDATA + '\\cloudflared\\' + binName,
-        process.env.PROGRAMFILES + '\\cloudflared\\' + binName,
-        (process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)') + '\\cloudflared\\' + binName,
-      );
-    } else if (isMac) {
-      commonPaths.push('/usr/local/bin/' + binName, '/opt/homebrew/bin/' + binName);
-    } else {
-      commonPaths.push('/usr/local/bin/' + binName, '/usr/bin/' + binName);
-    }
-
-    const { access } = await import('fs/promises');
-    for (const p of commonPaths) {
-      try {
-        await access(p);
-        return p;
-      } catch {}
-    }
-
-    // Try finding on system PATH using where/which
-    try {
-      const { execFileSync } = require('child_process');
-      if (isWin) {
-        const p = execFileSync('where', [binName], { encoding: 'utf-8', timeout: 3000 }).split('\n')[0].trim();
-        if (p) return p;
-      } else {
-        const p = execFileSync('which', [binName], { encoding: 'utf-8', timeout: 3000 }).trim();
-        if (p) return p;
-      }
-    } catch {}
-
-    const bundled = path.join(process.resourcesPath, binName);
-    try {
-      await access(bundled);
-      return bundled;
-    } catch {
+    const resolved = await resolveCloudflared(settings.cloudflaredPath || undefined);
+    if (resolved) {
       writeLog('system', 'findCloudflared', 'debug',
-        `cloudflared not found at bundled path: ${bundled}`);
+        `Using cloudflared (${resolved.source}): ${resolved.path}`);
+      return resolved.path;
     }
-
     return null;
   }
 
@@ -165,8 +119,7 @@ export class TunnelManager {
     writeLog(config.id, config.name, 'debug', `Resolved cloudflared path: ${cloudflaredPath ?? '(null)'}`);
 
     if (!cloudflaredPath) {
-      const binName = getCloudflaredName();
-      const msg = `cloudflared binary not found — checked PATH, common install dirs, and resources/${binName}. Use Settings to set the path manually.`;
+      const msg = `cloudflared not found. It normally ships bundled inside TunnelGate — this install may be damaged. Reinstall the app, or set a cloudflared path manually in Settings.`;
       writeLog(config.id, config.name, 'error', msg);
       this.setStatus(tunnel, 'error', msg);
       return;

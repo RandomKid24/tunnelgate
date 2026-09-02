@@ -30,7 +30,7 @@ Two things a generic RDP client or manually-run `cloudflared` cannot match toget
 
 - Passwords/secrets are encrypted at rest via Electron `safeStorage` (DPAPI / Keychain / libsecret) — never stored in plaintext.
 - RDP rendering path: `cloudflared access tcp` → native FreeRDP 3 addon (worker thread, GDI decode) → IPC frame push → `<canvas>` in the renderer, with dynamic resolution via `ResizeObserver`.
-- Auto-reconnect on transient tunnel interruption; Escape key disconnects RDP and tears down the tunnel cleanly.
+- Auto-reconnect on transient tunnel interruption. The RDP session is ended with the in-app **← Back** button; Esc is forwarded to the remote desktop (and exits fullscreen when fullscreen) so it never accidentally drops the session.
 - Auth and WiFi-gating are actively being built out (uncommitted work as of this session: `hrmsClient.ts`, `wifiDetector.ts`, `useAuth.ts`, `Login.tsx`, `UserMenu.tsx`) — treat these as real, load-bearing product surfaces, not experiments.
 
 ## Brand Commitments

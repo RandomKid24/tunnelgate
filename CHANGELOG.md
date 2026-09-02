@@ -4,7 +4,13 @@ All notable changes to TunnelGate.
 
 ## [Unreleased]
 
-## [2.1.2] - 2026-08-27
+### Added
+- Clipboard redirection in the in-app RDP viewer — copy/paste text between your local machine and the remote session, both directions, matching what `mstsc` gives you by default. The native addon (`rdp_session.cpp`) now enables `RedirectClipboard`, loads the `cliprdr` static virtual channel, and bridges it to the host OS clipboard through `RdpViewManager`, which polls the local clipboard while any session is live and mirrors remote copies back with an Electron `clipboard.writeText`. Text only (no file transfer); payloads over 256 KB are not synced to the remote. Requires the addon to be built against FreeRDP 3 (the path is compiled out on the FreeRDP 2 line some older Linux distros still ship). Clipboard contents are never written to the app logs.
+- **cloudflared now ships inside the app** — users no longer install it separately. `scripts/fetch-cloudflared.js` downloads a pinned, SHA-256-verified `cloudflared` release for the target platform into `resources/`; `build/beforePack.js` runs it before every package build and `npm run build:native` runs it for local builds. `src/main/cloudflaredResolver.ts` is the new single resolver used by both the tunnel spawner and the Settings status readout — it prefers an explicit path from Settings, then the bundled binary, then a system install, then `PATH`. The Settings → Cloudflared section now shows "Bundled with app" and the path field is an optional override.
+
+### Changed
+- Building from source no longer needs `cloudflared` installed — `npm run build:all` fetches it.
+- **<kbd>Esc</kbd> no longer disconnects the RDP session.** It was firing a full teardown (tunnel + RDP + Windows re-login) on a key you constantly need inside a remote desktop. Now: in fullscreen Esc exits fullscreen (and is not passed to the remote); windowed, Esc goes straight to the remote session. Disconnect with the **← Back** button. (`RdpView.tsx`)
 
 ### Fixed
 - "Use Native Client" from within the in-app RDP viewer could fail with Windows' `Your computer could not connect to another console session... you already have a console session in progress` — the in-app FreeRDP session was still live and holding the target machine's one available session slot when `mstsc.exe` tried to open a second one. `LAUNCH_NATIVE_CLIENT` now disconnects the FreeRDP view first (with a brief pause for the server to actually release the slot) before launching the native client.

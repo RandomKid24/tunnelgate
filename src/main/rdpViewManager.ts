@@ -1,4 +1,4 @@
-import { BrowserWindow, app } from 'electron';
+import { BrowserWindow, app, clipboard } from 'electron';
 import path from 'path';
 const isWin = process.platform === 'win32';
 const isLinux = process.platform === 'linux';
@@ -17,7 +17,14 @@ interface RdpAddon {
   destroySession(id: number): void;
   sendPointerEvent(id: number, flags: number, x: number, y: number): void;
   sendKeyboardEvent(id: number, flags: number, code: number): void;
+  /** Present on builds compiled against FreeRDP 3 (clipboard redirection). */
+  setClipboard?(id: number, text: string): void;
 }
+
+// Cap clipboard payloads pushed to the remote session. Plenty for text;
+// keeps a pathological local clipboard from being shovelled over the channel.
+const MAX_CLIPBOARD_BYTES = 256 * 1024;
+const CLIPBOARD_POLL_MS = 500;
 
 type RdpEventCallback = (tunnelId: string, event: string, ...args: any[]) => void;
 
@@ -38,6 +45,13 @@ export class RdpViewManager {
   private win: BrowserWindow | null = null;
   private onEvent: RdpEventCallback | null = null;
   private lastDimensions = new Map<string, { width: number; height: number }>();
+
+  // Host <-> remote clipboard bridge. We poll the OS clipboard (Electron has no
+  // change event) while any session is live, and push new text to every session.
+  // `lastClipboardText` is the last value we've reconciled in either direction,
+  // so neither side echoes the other's paste back into a loop.
+  private clipboardPoll: NodeJS.Timeout | null = null;
+  private lastClipboardText = '';
 
   constructor() {
     const fs = require('fs');
@@ -160,6 +174,7 @@ export class RdpViewManager {
 
         this.lastDimensions.set(tunnelId, { width, height });
         this.sessions.set(tunnelId, sessionId);
+        this.startClipboardBridge();
 
         const elapsed = Date.now() - startTime;
         if (attempt > 1) {
@@ -207,6 +222,7 @@ export class RdpViewManager {
       writeLog(tunnelId, 'RDP View', 'error', `Error destroying session: ${err.message}\n${err.stack || ''}`);
     }
     this.sessions.delete(tunnelId);
+    if (this.sessions.size === 0) this.stopClipboardBridge();
     writeLog(tunnelId, 'RDP View', 'info', 'RDP session destroyed');
 
     if (this.onEvent) {
@@ -235,6 +251,21 @@ export class RdpViewManager {
       const h = args[1];
       this.lastDimensions.set(tunnelId, { width: w, height: h });
       writeLog(tunnelId, 'RDP View', 'info', `RDP session resized to ${w}x${h}`);
+    } else if (type === 'clipboard') {
+      // Remote session copied text — mirror it to the host OS clipboard.
+      const text = typeof args[0] === 'string' ? args[0] : '';
+      try {
+        clipboard.writeText(text);
+        // Read back so lastClipboardText matches exactly what the OS stored
+        // (it may normalise line endings); otherwise the next poll would treat
+        // it as a fresh local change and echo it back to the remote.
+        this.lastClipboardText = clipboard.readText();
+      } catch (err: any) {
+        this.lastClipboardText = text;
+        writeLog(tunnelId, 'RDP View', 'warn', `Failed to write host clipboard: ${err.message}`);
+      }
+      writeLog(tunnelId, 'RDP View', 'debug', `Clipboard: received ${text.length} chars from remote`);
+      return; // don't forward clipboard contents to the renderer
     } else if (type === 'serverName') {
       writeLog(tunnelId, 'RDP View', 'info', `RDP server name detected: ${firstArg}`);
       const name = (firstArg || '').trim();
@@ -317,9 +348,60 @@ export class RdpViewManager {
     }
   }
 
+  private startClipboardBridge() {
+    if (this.clipboardPoll) return;
+    if (typeof this.addon?.setClipboard !== 'function') {
+      writeLog('rdp', 'RDP View', 'info',
+        'Clipboard redirection unavailable (addon built without FreeRDP 3 cliprdr support)');
+      return;
+    }
+
+    // Seed empty so the first sync actually pushes the current clipboard to the
+    // freshly connected session instead of treating it as "unchanged".
+    this.lastClipboardText = '';
+    this.syncClipboardFromHost();
+    this.clipboardPoll = setInterval(() => this.syncClipboardFromHost(), CLIPBOARD_POLL_MS);
+
+    writeLog('rdp', 'RDP View', 'info', 'Clipboard bridge started');
+  }
+
+  private syncClipboardFromHost() {
+    if (this.sessions.size === 0 || typeof this.addon?.setClipboard !== 'function') return;
+    let text: string;
+    try {
+      text = clipboard.readText();
+    } catch {
+      return;
+    }
+    if (text === this.lastClipboardText) return;
+    if (Buffer.byteLength(text, 'utf8') > MAX_CLIPBOARD_BYTES) {
+      writeLog('rdp', 'RDP View', 'debug',
+        `Clipboard: host text too large (${text.length} chars), not syncing to remote`);
+      this.lastClipboardText = text; // don't retry every tick
+      return;
+    }
+    this.lastClipboardText = text;
+    for (const sessionId of this.sessions.values()) {
+      try {
+        this.addon?.setClipboard?.(sessionId, text);
+      } catch (err: any) {
+        writeLog('rdp', 'RDP View', 'warn', `Clipboard push failed: ${err.message}`);
+      }
+    }
+  }
+
+  private stopClipboardBridge() {
+    if (!this.clipboardPoll) return;
+    clearInterval(this.clipboardPoll);
+    this.clipboardPoll = null;
+    this.lastClipboardText = '';
+    writeLog('rdp', 'RDP View', 'info', 'Clipboard bridge stopped');
+  }
+
   disconnectAll() {
     for (const tunnelId of this.sessions.keys()) {
       this.disconnectView(tunnelId);
     }
+    this.stopClipboardBridge();
   }
 }

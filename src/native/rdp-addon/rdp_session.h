@@ -5,12 +5,24 @@
 #include <freerdp/client/cmdline.h>
 #include <freerdp/constants.h>
 #include <freerdp/codec/color.h>
+#include <freerdp/version.h>
 #include <winpr/wtypes.h>
 #include <thread>
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <functional>
+#include <string>
 #include <vector>
+
+// Clipboard redirection (cliprdr SVC) is only wired up against FreeRDP 3.x —
+// the client cliprdr API shape and freerdp_client_load_addins signature differ
+// on the 2.x line that older Linux distros still ship. On 2.x the feature
+// silently no-ops.
+#if defined(FREERDP_VERSION_MAJOR) && FREERDP_VERSION_MAJOR >= 3
+#define TG_CLIPBOARD 1
+#include <freerdp/client/cliprdr.h>
+#endif
 
 class RdpFrameListener {
 public:
@@ -20,6 +32,8 @@ public:
   virtual void onDisconnect(const char* reason) = 0;
   virtual void onError(const char* msg) = 0;
   virtual void onServerName(const char* name) = 0;
+  // Remote session put UTF-8 text on its clipboard; bridge it to the host OS.
+  virtual void onClipboardText(const char* utf8) = 0;
 };
 
 class RdpSession {
@@ -44,13 +58,39 @@ public:
   const std::string& serverName() const { return serverName_; }
   void setServerName(const std::string& name) { serverName_ = name; }
 
+  // Push host-OS clipboard text into the remote session. Thread-safe: it only
+  // stashes the text and flags the pump thread to advertise a new format list.
+  void setClipboardText(const std::string& utf8);
+
 private:
   static BOOL beginPaint(rdpContext* ctx);
   static BOOL endPaint(rdpContext* ctx);
   static BOOL desktopResize(rdpContext* ctx);
+  static BOOL preConnectCallback(freerdp* instance);
   static BOOL postConnectCallback(freerdp* instance);
   static int verifyX509Certificate(freerdp* instance, const BYTE* data, size_t length,
                                    const char* hostname, UINT16 port, DWORD flags);
+
+#ifdef TG_CLIPBOARD
+  static void onChannelConnected(void* context, const ChannelConnectedEventArgs* e);
+  static void onChannelDisconnected(void* context, const ChannelDisconnectedEventArgs* e);
+  static UINT cliprdrMonitorReady(CliprdrClientContext* ctx, const CLIPRDR_MONITOR_READY* ready);
+  static UINT cliprdrServerCapabilities(CliprdrClientContext* ctx, const CLIPRDR_CAPABILITIES* caps);
+  static UINT cliprdrServerFormatList(CliprdrClientContext* ctx, const CLIPRDR_FORMAT_LIST* list);
+  static UINT cliprdrServerFormatListResponse(CliprdrClientContext* ctx,
+                                              const CLIPRDR_FORMAT_LIST_RESPONSE* resp);
+  static UINT cliprdrServerFormatDataRequest(CliprdrClientContext* ctx,
+                                             const CLIPRDR_FORMAT_DATA_REQUEST* req);
+  static UINT cliprdrServerFormatDataResponse(CliprdrClientContext* ctx,
+                                              const CLIPRDR_FORMAT_DATA_RESPONSE* resp);
+  void sendClientFormatList();
+
+  std::atomic<CliprdrClientContext*> cliprdr_{nullptr};
+  std::atomic<bool> clipboardDirty_{false};
+  std::mutex clipMutex_;
+  std::string hostClipboardText_;   // guarded by clipMutex_
+  UINT32 pendingRemoteFormat_ = 0;  // pump thread only
+#endif
 
 
   freerdp* instance_ = nullptr;

@@ -96,7 +96,11 @@ const api = {
     selectFile: (): Promise<string | null> =>
       ipcRenderer.invoke(IPC_CHANNELS.DIALOG_SELECT_FILE),
 
-    checkCloudflared: (): Promise<{ found: boolean; path: string | null }> =>
+    checkCloudflared: (): Promise<{
+      found: boolean;
+      path: string | null;
+      source: 'settings' | 'bundled' | 'system-dir' | 'path' | null;
+    }> =>
       ipcRenderer.invoke(IPC_CHANNELS.CHECK_CLOUDFLARED),
   },
 

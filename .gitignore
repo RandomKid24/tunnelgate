@@ -8,3 +8,8 @@ Thumbs.db
 native/rdp-addon/build/
 src/native/rdp-addon/build/
 native/wifi-native/build/
+
+# cloudflared binaries are fetched at build time by scripts/fetch-cloudflared.js
+# (too large to track; pinned + checksummed in that script).
+resources/cloudflared
+resources/cloudflared.exe

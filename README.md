@@ -43,7 +43,7 @@
 | 🔐 | **Zero Plaintext Secrets** | Passwords encrypted at rest with Electron `safeStorage` (DPAPI / Keychain / libsecret) |
 | 🪟 | **Native Client Fallback** | Launch `mstsc.exe` (Windows) or Microsoft Remote Desktop (macOS) with pre-filled credentials |
 | 🔄 | **Auto-Reconnect** | Survives transient tunnel interruptions |
-| ⌨️ | **Escape Auto-Disconnect** | Press <kbd>Esc</kbd> to disconnect RDP + close tunnel cleanly |
+| ⌨️ | **Esc goes to the session** | <kbd>Esc</kbd> is forwarded to the remote desktop; in fullscreen it exits fullscreen. Disconnect with the **← Back** button |
 | 🌍 | **Cross-Platform** | macOS (Intel & Apple Silicon), Windows x64, Linux x64 |
 
 ---
@@ -64,7 +64,7 @@ flowchart LR
     CF -->|"443/tls"| Server["RDP Server<br/>port 3389"]
 
     UI -->|"ResizeObserver"| Rdp["RdpView.tsx"]
-    Rdp -->|"Escape key"| Disc["Disconnect Hook"]
+    Rdp -->|"← Back button"| Disc["Disconnect Hook"]
 
     style UI fill:#1a1a2e,stroke:#e94560,color:#fff
     style Main fill:#16213e,stroke:#0f3460,color:#fff
@@ -112,7 +112,7 @@ flowchart LR
 | Component | macOS | Windows | Linux |
 |---|---|---|---|
 | **Node.js** | `brew install node` | [Download](https://nodejs.org/) 18+ | `apt install nodejs npm` |
-| **cloudflared** | `brew install cloudflared` | [Download .msi](https://github.com/cloudflare/cloudflared/releases) | `apt install cloudflared` |
+| **cloudflared** | Fetched automatically by `npm run build:all` (pinned + checksummed in `scripts/fetch-cloudflared.js`) and bundled into the packaged app — no separate install | | |
 | **FreeRDP 3** | `brew install freerdp` | Included via `prebuilt/windows-x64/` (no install needed) | `apt install freerdp3-dev` |
 | **Build Tools** | Xcode CLI: `xcode-select --install` | VS 2022 BuildTools + cmake + vcpkg | `build-essential` + cmake |
 
@@ -171,7 +171,7 @@ npm run build:all && npx electron-builder --linux
 6. **Interaction** — Keyboard & mouse events are forwarded back through the tunnel to the RDP server
 7. **Dynamic resize** — `ResizeObserver` tracks viewport changes; the canvas adjusts in real-time
 8. **Fullscreen** — Native Fullscreen API hides all OS chrome; toolbar stays accessible on hover
-9. **Disconnect** — Press <kbd>Esc</kbd> or click the back button; both kill `cloudflared` and disconnect FreeRDP
+9. **Disconnect** — Click the **← Back** button to tear down the RDP session (the tunnel stays up until you disconnect it from the tunnel list). <kbd>Esc</kbd> is *not* a disconnect key — it's forwarded to the remote desktop, or exits fullscreen when fullscreen
 
 ### Toolbar Behavior (Fullscreen)
 
@@ -291,7 +291,7 @@ src/
 ├── renderer/              # React frontend (Vite)
 │   ├── App.tsx            # Root component with RDP view wrapper
 │   ├── views/
-│   │   └── RdpView.tsx    # ResizeObserver, fullscreen, toolbar, Escape handler
+│   │   └── RdpView.tsx    # ResizeObserver, fullscreen, toolbar, Esc→fullscreen-exit
 │   └── components/
 │       └── RdpCanvas.tsx  # Canvas rendering, rAF paint loop, mouse input
 ├── preload/               # Context bridge (exposes IPC to renderer)

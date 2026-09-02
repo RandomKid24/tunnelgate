@@ -314,16 +314,25 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
 
+  // Esc handling. It must NOT disconnect the session — Esc is a normal key you
+  // routinely need inside a remote desktop, and tearing the session down forces
+  // a full tunnel + RDP + Windows re-login. Instead:
+  //   • fullscreen  → Esc leaves fullscreen (captured here so the remote doesn't
+  //                   also receive it); use the toolbar to disconnect.
+  //   • windowed    → Esc is passed straight through to the session (RdpCanvas
+  //                   forwards it as a scancode); use "← Back" to disconnect.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !passwordUpdateRequired) {
+      if (e.key !== 'Escape' || passwordUpdateRequired) return;
+      if (isFullscreen) {
+        e.preventDefault();
         e.stopPropagation();
-        handleBack();
+        window.cloudflareRdp.rdp.toggleFullscreen();
       }
     };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [handleBack, passwordUpdateRequired]);
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+  }, [isFullscreen, passwordUpdateRequired]);
 
   const handleUpdatePassword = useCallback(async () => {
     if (!tunnel || !newPassword.trim()) return;

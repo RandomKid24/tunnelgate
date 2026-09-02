@@ -16,7 +16,11 @@ interface SettingsProps {
 
 export function Settings({ session, onLogout }: SettingsProps) {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
-  const [cloudflaredStatus, setCloudflaredStatus] = useState<{ found: boolean; path: string | null } | null>(null);
+  const [cloudflaredStatus, setCloudflaredStatus] = useState<{
+    found: boolean;
+    path: string | null;
+    source: 'settings' | 'bundled' | 'system-dir' | 'path' | null;
+  } | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -61,11 +65,11 @@ export function Settings({ session, onLogout }: SettingsProps) {
 
       <Divider />
 
-      <Section title="Cloudflared" tooltip="Path to the cloudflared binary used to create TCP tunnels. Auto-detected if left empty.">
+      <Section title="Cloudflared" tooltip="cloudflared creates the encrypted tunnel to your server. TunnelGate ships with its own copy — you only need this if you want to point at a specific build.">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 12, color: cloudflaredStatus?.found ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-              {cloudflaredStatus?.found ? '● Found' : '○ Not found'}
+              {cloudflaredStatus?.found ? `● ${cloudflaredStatusLabel(cloudflaredStatus.source)}` : '○ Not found'}
             </span>
             {cloudflaredStatus?.path && (
               <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>
@@ -78,7 +82,7 @@ export function Settings({ session, onLogout }: SettingsProps) {
               type="text"
               value={settings.cloudflaredPath}
               onChange={(e) => update({ cloudflaredPath: e.target.value })}
-              placeholder="Path to cloudflared.exe (auto-detected if empty)"
+              placeholder="Override path (optional — bundled copy is used if empty)"
               style={{
                 flex: 1,
                 padding: '8px 12px',
@@ -137,6 +141,16 @@ export function Settings({ session, onLogout }: SettingsProps) {
       )}
     </div>
   );
+}
+
+function cloudflaredStatusLabel(source: 'settings' | 'bundled' | 'system-dir' | 'path' | null): string {
+  switch (source) {
+    case 'bundled': return 'Bundled with app';
+    case 'settings': return 'Using custom path';
+    case 'system-dir':
+    case 'path': return 'Found on system';
+    default: return 'Found';
+  }
 }
 
 function Section({ title, children, tooltip }: { title: string; children: React.ReactNode; tooltip?: string }) {

@@ -43,8 +43,8 @@ Pump thread -> Main thread via `Napi::ThreadSafeFunction`. Main thread -> Render
 | File | Purpose |
 |------|---------|
 | `rdp_session.h` | `RdpSession` class + `RdpFrameListener` interface |
-| `rdp_session.cpp` | Connect, pump loop, `endPaint`, pixel conversion, mouse/keyboard |
-| `rdp_module.cpp` | N-API entry: `createSession`, `destroySession`, `sendPointerEvent`, `sendKeyboardEvent` |
+| `rdp_session.cpp` | Connect, pump loop, `endPaint`, pixel conversion, mouse/keyboard, clipboard (`cliprdr`) |
+| `rdp_module.cpp` | N-API entry: `createSession`, `destroySession`, `sendPointerEvent`, `sendKeyboardEvent`, `setClipboard` |
 | `CMakeLists.txt` | CMake build: finds FreeRDP 3/WinPR, outputs `rdp_addon.node` |
 
 ### TypeScript / Electron
@@ -225,6 +225,59 @@ canvas. Avoids tearing, batches multiple dirty-rects into one refresh.
 
 ### Error Handling
 Wrap `createImageData`/`putImageData` in try/catch - can throw on invalid dimensions.
+
+---
+
+## Clipboard Redirection
+
+Text-only, bidirectional. Compiled only when the addon links against FreeRDP 3
+(`#define TG_CLIPBOARD` in `rdp_session.h`, gated on `FREERDP_VERSION_MAJOR >= 3`);
+on the FreeRDP 2 line the feature is a no-op.
+
+### Wiring (C++ / `rdp_session.cpp`)
+1. `connect()` sets `FreeRDP_RedirectClipboard = TRUE`. Nothing else is added to
+   the channel arrays — `RedirectClipboard` is what makes
+   `freerdp_client_load_addins()` pull in the `cliprdr` static virtual channel.
+   Adding `cliprdr` *explicitly as well* loads it twice — don't.
+2. New `instance->PreConnect` callback (`preConnectCallback`) calls
+   `freerdp_client_load_addins(context->channels, context->settings)` — FreeRDP
+   core never loads addins from the settings arrays on its own; the client is
+   responsible. It then subscribes to the `ChannelConnected` / `ChannelDisconnected`
+   PubSub events.
+3. `onChannelConnected` matches `CLIPRDR_SVC_CHANNEL_NAME`, casts
+   `e->pInterface` to `CliprdrClientContext*`, sets `custom = this` and the six
+   `Server*` callbacks, and stashes the context in `cliprdr_` (atomic).
+
+### Data flow
+- **Host → remote:** `RdpViewManager` polls the OS clipboard and calls the
+  addon's `setClipboard(id, text)` → `RdpSession::setClipboardText()` stores the
+  UTF-8 under `clipMutex_` and sets the `clipboardDirty_` atomic. The **pump
+  thread** notices the flag and calls `sendClientFormatList()` (advertises
+  `CF_UNICODETEXT` + `CF_TEXT`). Server replies with `ServerFormatDataRequest`;
+  `cliprdrServerFormatDataRequest` answers with UTF-16LE (`\n` → `\r\n`).
+- **Remote → host:** `cliprdrServerFormatList` fires on the pump thread when the
+  remote clipboard changes → ack + `ClientFormatDataRequest(CF_UNICODETEXT)` →
+  `cliprdrServerFormatDataResponse` decodes to UTF-8 (`\r\n` → `\n`) and calls
+  `listener_->onClipboardText()`, surfaced to JS as an `onEvent('clipboard', text)`.
+
+### Threading rule
+**Every `cliprdr` channel write happens on the pump thread.** `setClipboardText`
+(called from the Node main thread) only touches an atomic + a mutex-guarded
+string; it never calls into the channel. `MonitorReady`, `ServerFormatList`,
+`ServerFormatDataRequest` all arrive via `freerdp_check_event_handles` on the
+pump thread, so their responses are already on the right thread.
+
+### Bridge (`RdpViewManager`)
+- `startClipboardBridge()` runs a 500 ms `setInterval` while `sessions.size > 0`;
+  `stopClipboardBridge()` on the last disconnect.
+- `lastClipboardText` is the last value reconciled in *either* direction — the
+  poller skips it, and the remote→host handler sets it before `writeText`, so
+  neither side echoes the other into a loop.
+- Payloads over `MAX_CLIPBOARD_BYTES` (256 KB) are not pushed to the remote.
+- The `'clipboard'` event is handled and then `return`s — clipboard contents are
+  never forwarded to the renderer and never logged (only the char count is).
+- If the addon has no `setClipboard` export (FreeRDP 2 build), the bridge logs
+  once and stays off.
 
 ---
 

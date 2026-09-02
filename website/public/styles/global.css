@@ -483,6 +483,14 @@ section { padding: 96px 0; }
   width: 10px;
   height: 10px;
 }
+.prereq-note {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hairline);
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.6;
+}
 
 /* ── ARCHITECTURE ── */
 .arch {

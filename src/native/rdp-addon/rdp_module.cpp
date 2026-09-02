@@ -19,17 +19,20 @@ public:
   JsFrameListener(Napi::ThreadSafeFunction bitmapCb,
                   Napi::ThreadSafeFunction resizeCb,
                   Napi::ThreadSafeFunction disconnectCb,
-                  Napi::ThreadSafeFunction errorCb)
+                  Napi::ThreadSafeFunction errorCb,
+                  Napi::ThreadSafeFunction clipboardCb)
     : bitmapCb_(std::move(bitmapCb)),
       resizeCb_(std::move(resizeCb)),
       disconnectCb_(std::move(disconnectCb)),
-      errorCb_(std::move(errorCb)) {}
+      errorCb_(std::move(errorCb)),
+      clipboardCb_(std::move(clipboardCb)) {}
 
   ~JsFrameListener() {
     bitmapCb_.Release();
     resizeCb_.Release();
     disconnectCb_.Release();
     errorCb_.Release();
+    clipboardCb_.Release();
   }
 
   void onBitmapUpdate(int x, int y, int w, int h, const void* data, size_t size) override {
@@ -96,11 +99,23 @@ public:
     } catch (...) {}
   }
 
+  void onClipboardText(const char* utf8) override {
+    try {
+      std::string t(utf8 ? utf8 : "");
+      clipboardCb_.BlockingCall([t](Napi::Env env, Napi::Function jsCallback) {
+        try {
+          jsCallback.Call({ Napi::String::New(env, "clipboard"), Napi::String::New(env, t) });
+        } catch (...) {}
+      });
+    } catch (...) {}
+  }
+
 private:
   Napi::ThreadSafeFunction bitmapCb_;
   Napi::ThreadSafeFunction resizeCb_;
   Napi::ThreadSafeFunction disconnectCb_;
   Napi::ThreadSafeFunction errorCb_;
+  Napi::ThreadSafeFunction clipboardCb_;
 };
 
 static Napi::Value CreateSession(const Napi::CallbackInfo& info) {
@@ -129,10 +144,12 @@ static Napi::Value CreateSession(const Napi::CallbackInfo& info) {
     env, onEvent, "rdp-disconnect", 0, 1);
   auto errorTsFn = Napi::ThreadSafeFunction::New(
     env, onEvent, "rdp-error", 0, 1);
+  auto clipboardTsFn = Napi::ThreadSafeFunction::New(
+    env, onEvent, "rdp-clipboard", 0, 1);
 
   auto listener = new JsFrameListener(
     std::move(bitmapTsFn), std::move(resizeTsFn),
-    std::move(disconnectTsFn), std::move(errorTsFn));
+    std::move(disconnectTsFn), std::move(errorTsFn), std::move(clipboardTsFn));
 
   auto session = new RdpSession(
     host, port, width, height, username, password, listener, serverHostname);
@@ -217,11 +234,30 @@ static Napi::Value SendKeyboardEvent(const Napi::CallbackInfo& info) {
   return env.Undefined();
 }
 
+static Napi::Value SetClipboard(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  if (info.Length() < 2) {
+    Napi::TypeError::New(env, "Expected sessionId, text").ThrowAsJavaScriptException();
+    return env.Undefined();
+  }
+
+  int id = info[0].As<Napi::Number>().Int32Value();
+  std::string text = info[1].As<Napi::String>().Utf8Value();
+
+  std::lock_guard<std::mutex> lock(sessionsMutex_);
+  auto it = sessions_.find(id);
+  if (it != sessions_.end()) {
+    it->second.session->setClipboardText(text);
+  }
+  return env.Undefined();
+}
+
 static Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set("createSession", Napi::Function::New(env, CreateSession));
   exports.Set("destroySession", Napi::Function::New(env, DestroySession));
   exports.Set("sendPointerEvent", Napi::Function::New(env, SendPointerEvent));
   exports.Set("sendKeyboardEvent", Napi::Function::New(env, SendKeyboardEvent));
+  exports.Set("setClipboard", Napi::Function::New(env, SetClipboard));
   return exports;
 }
 

@@ -5,6 +5,7 @@ import { getTunnels, setTunnels, getSettings, setSettings, getAuthSession, setAu
 import { credentialStore } from './credentialStore';
 import { TunnelManager } from './tunnelManager';
 import { RdpViewManager } from './rdpViewManager';
+import { resolveCloudflared } from './cloudflaredResolver';
 import { getCombinedLogs, writeLog, getLogs } from './logger';
 import { hrmsLogin, hrmsValidateWifi } from './hrmsClient';
 import { detectWifi } from './wifiDetector';
@@ -518,45 +519,12 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
   });
 
   ipcMain.handle(IPC_CHANNELS.CHECK_CLOUDFLARED, async () => {
-    const { access } = await import('fs/promises');
     const settings = getSettings();
-    const binName = isWin ? 'cloudflared.exe' : 'cloudflared';
-
-    const paths: string[] = [
-      settings.cloudflaredPath,
-      binName,
-    ].filter(Boolean) as string[];
-
-    if (isWin) {
-      paths.push(
-        process.env.LOCALAPPDATA + '\\cloudflared\\' + binName,
-        process.env.PROGRAMFILES + '\\cloudflared\\' + binName,
-        (process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)') + '\\cloudflared\\' + binName,
-      );
-    } else {
-      paths.push('/usr/local/bin/' + binName, '/opt/homebrew/bin/' + binName, '/usr/bin/' + binName);
+    const resolved = await resolveCloudflared(settings.cloudflaredPath || undefined);
+    if (resolved) {
+      return { found: true, path: resolved.path, source: resolved.source };
     }
-
-    paths.push(__dirname + '/../../resources/' + binName);
-
-    for (const p of paths) {
-      try {
-        await access(p);
-        return { found: true, path: p };
-      } catch {}
-    }
-
-    try {
-      const { execFileSync } = require('child_process');
-      if (isWin) {
-        const p = execFileSync('where', [binName], { encoding: 'utf-8', timeout: 3000 }).split('\n')[0].trim();
-        if (p) return { found: true, path: p };
-      } else {
-        const p = execFileSync('which', [binName], { encoding: 'utf-8', timeout: 3000 }).trim();
-        if (p) return { found: true, path: p };
-      }
-    } catch {}
-    return { found: false, path: null };
+    return { found: false, path: null, source: null };
   });
 }
 

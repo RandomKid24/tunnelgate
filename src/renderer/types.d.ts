@@ -40,7 +40,11 @@ declare global {
         checkForUpdates: () => Promise<UpdateInfo | null>;
         openExternal: (url: string) => void;
         selectFile: () => Promise<string | null>;
-        checkCloudflared: () => Promise<{ found: boolean; path: string | null }>;
+        checkCloudflared: () => Promise<{
+          found: boolean;
+          path: string | null;
+          source: 'settings' | 'bundled' | 'system-dir' | 'path' | null;
+        }>;
       };
       rdp: {
         isAvailable: () => Promise<{ available: boolean; error?: string }>;
@@ -52,6 +56,9 @@ declare global {
         onFrame: (callback: (tunnelId: string, rect: { x: number; y: number; w: number; h: number }, buf: ArrayBuffer) => void) => () => void;
         onEvent: (callback: (tunnelId: string, type: string, ...args: any[]) => void) => () => void;
         updatePassword: (tunnelId: string, newPassword: string, width?: number, height?: number) => Promise<boolean>;
+        getDisplayInfo: () => Promise<{ width: number; height: number; scaleFactor: number }>;
+        toggleFullscreen: () => Promise<boolean>;
+        onFullscreenChange: (callback: (fullscreen: boolean) => void) => () => void;
       };
     };
   }

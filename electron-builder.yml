@@ -1,6 +1,7 @@
 appId: com.tunnelgate.app
 productName: TunnelGate
 npmRebuild: false
+beforePack: build/beforePack.js
 afterPack: build/afterPack.mac.js
 directories:
   output: release
@@ -10,10 +11,10 @@ files:
   - resources/icons/**/*
   - package.json
 extraResources:
-  - from: resources/
-    to: resources/
-    filter:
-      - "cloudflared*"
+  # cloudflared itself is bundled per-platform (see win/mac/linux blocks below) so
+  # a mac build doesn't also carry the Windows .exe. build/beforePack.js fetches
+  # the right one into resources/ before packaging; it lands at
+  # <resourcesPath>/cloudflared[.exe] — where cloudflaredResolver.ts looks.
   - from: native/rdp-addon/build/Release/
     to: rdp-addon
     filter:
@@ -28,6 +29,9 @@ win:
       arch:
         - x64
   icon: resources/icons/icon.png
+  extraResources:
+    - from: resources/cloudflared.exe
+      to: cloudflared.exe
 mac:
   target:
     - target: dmg
@@ -53,6 +57,8 @@ mac:
       to: wifi-native
       filter:
         - "*.node"
+    - from: resources/cloudflared
+      to: cloudflared
 linux:
   target:
     - target: AppImage
@@ -63,6 +69,9 @@ linux:
         - x64
   icon: resources/icons/
   category: Utility
+  extraResources:
+    - from: resources/cloudflared
+      to: cloudflared
 nsis:
   oneClick: false
   perMachine: false

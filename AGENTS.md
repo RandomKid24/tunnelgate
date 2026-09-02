@@ -71,7 +71,8 @@ Read `docs/RDP_NATIVE_ADDON.md` before modifying any C++ or RDP-related code. It
 src/main/bootstrap.ts          # MUST import first — sets PATH/env for native addon
 src/main/index.ts              # Electron entry point
 src/main/tunnelManager.ts      # cloudflared lifecycle
-src/main/rdpViewManager.ts     # FreeRDP addon bridge
+src/main/cloudflaredResolver.ts # locates cloudflared (bundled > system > PATH)
+src/main/rdpViewManager.ts     # FreeRDP addon bridge + clipboard bridge
 src/main/credentialStore.ts    # safeStorage encrypt/decrypt
 src/main/store.ts              # electron-store persistence
 src/renderer/views/RdpView.tsx # RDP viewer: fullscreen, ResizeObserver, Escape handler

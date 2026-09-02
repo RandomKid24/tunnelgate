@@ -8,11 +8,21 @@
 #include <freerdp/gdi/gdi.h>
 #include <freerdp/input.h>
 #include <freerdp/crypto/certificate.h>
+#include <freerdp/client/cmdline.h>
 #include <winpr/wlog.h>
 #include <winpr/sspi.h>
+#include <winpr/string.h>
 #include <thread>
 #include <chrono>
+#include <cstring>
+#include <cstdlib>
 #include <mutex>
+
+#ifdef TG_CLIPBOARD
+#include <winpr/user.h>     // CF_TEXT / CF_UNICODETEXT
+#include <winpr/wtsapi.h>   // CHANNEL_RC_OK
+#include <freerdp/channels/cliprdr.h>
+#endif
 static std::mutex s_logMutex;
 
 static void fileLog(const char* msg) {
@@ -132,6 +142,25 @@ RdpSession::RdpSession(const std::string& host, int port,
 
 RdpSession::~RdpSession() {
   disconnect();
+}
+
+BOOL RdpSession::preConnectCallback(freerdp* instance) {
+#ifdef TG_CLIPBOARD
+  // Instantiate the static-channel addins we registered in connect() (cliprdr).
+  // Without this call FreeRDP core never loads channels from the settings array.
+  rdpContext* ctx = instance->context;
+  if (!freerdp_client_load_addins(ctx->channels, ctx->settings)) {
+    fileLog("[RDP] WARN: freerdp_client_load_addins failed — clipboard unavailable");
+  } else {
+    UINT rc1 = PubSub_SubscribeChannelConnected(ctx->pubSub, onChannelConnected);
+    UINT rc2 = PubSub_SubscribeChannelDisconnected(ctx->pubSub, onChannelDisconnected);
+    fileLog(("[RDP] clipboard: addins loaded, pubsub sub rc=" +
+             std::to_string(rc1) + "/" + std::to_string(rc2)).c_str());
+  }
+#else
+  (void)instance;
+#endif
+  return TRUE;
 }
 
 BOOL RdpSession::postConnectCallback(freerdp* instance) {
@@ -348,6 +377,16 @@ bool RdpSession::connect() {
   freerdp_settings_set_bool(settings, FreeRDP_GfxH264, FALSE);
   freerdp_settings_set_bool(settings, FreeRDP_SupportGraphicsPipeline, FALSE);
 
+#ifdef TG_CLIPBOARD
+  // Clipboard redirection (text only, no file transfer). RedirectClipboard=TRUE
+  // makes freerdp_client_load_addins() — called from preConnectCallback() — pull
+  // in the cliprdr static virtual channel. onChannelConnected() then wires the
+  // CliprdrClientContext callbacks. This is the same path xfreerdp's /clipboard
+  // uses; we deliberately do NOT also add the channel explicitly, which would
+  // load it twice.
+  freerdp_settings_set_bool(settings, FreeRDP_RedirectClipboard, TRUE);
+#endif
+
   // Detect and set display scaling factor
 #ifdef _WIN32
   UINT32 dpi = 96;
@@ -371,6 +410,7 @@ bool RdpSession::connect() {
   // VerifyX509Certificate / VerifyCertificate callbacks are NOT set.
   // IgnoreCertificate=TRUE handles certificate acceptance without callbacks.
   // Server name is detected via serverHostname_ from tunnel config in postConnectCallback.
+  instance_->PreConnect = preConnectCallback;
   instance_->PostConnect = postConnectCallback;
 
   WLog_SetLogLevel(WLog_Get("com.freerdp.core.tls"), WLOG_TRACE);
@@ -483,6 +523,14 @@ void RdpSession::disconnect() {
 void RdpSession::pump() {
   int consecutiveFailures = 0;
   while (running_ && connected_) {
+#ifdef TG_CLIPBOARD
+    // Host clipboard changed since last tick — advertise it to the server.
+    // Done here (pump thread) so all cliprdr channel writes stay single-threaded.
+    if (clipboardDirty_.exchange(false)) {
+      sendClientFormatList();
+    }
+#endif
+
     HANDLE handles[64];
     DWORD ncount = freerdp_get_event_handles(context_, handles, 64);
     if (ncount == 0) {
@@ -666,4 +714,266 @@ BOOL RdpSession::desktopResize(rdpContext* ctx) {
 
   return TRUE;
 }
+
+// ---------------------------------------------------------------------------
+// Clipboard redirection (cliprdr static virtual channel) — text only.
+//
+// Host -> remote:  setClipboardText() stashes UTF-8 and flags the pump thread,
+//   which calls sendClientFormatList(). The server then asks for the data via
+//   cliprdrServerFormatDataRequest(), answered with CF_UNICODETEXT (UTF-16LE).
+// Remote -> host:  cliprdrServerFormatList() fires when the remote clipboard
+//   changes; we request CF_UNICODETEXT and cliprdrServerFormatDataResponse()
+//   hands the decoded UTF-8 to listener_->onClipboardText().
+// ---------------------------------------------------------------------------
+#ifdef TG_CLIPBOARD
+
+static std::string normalizeToLf(const std::string& in) {
+  std::string out;
+  out.reserve(in.size());
+  for (size_t i = 0; i < in.size(); i++) {
+    if (in[i] == '\r') {
+      if (i + 1 < in.size() && in[i + 1] == '\n') continue;  // drop CR in CRLF
+      out.push_back('\n');                                   // lone CR -> LF
+    } else {
+      out.push_back(in[i]);
+    }
+  }
+  return out;
+}
+
+// LF (or lone CR, or CRLF) -> CRLF, without ever producing "\r\r\n" when the
+// input is already CRLF. RDP text formats expect CRLF line endings.
+static std::string normalizeToCrlf(const std::string& in) {
+  std::string out;
+  out.reserve(in.size() + in.size() / 8);
+  for (size_t i = 0; i < in.size(); i++) {
+    char c = in[i];
+    if (c == '\r') {
+      out.push_back('\r');
+      out.push_back('\n');
+      if (i + 1 < in.size() && in[i + 1] == '\n') i++;  // consume the LF of CRLF
+    } else if (c == '\n') {
+      out.push_back('\r');
+      out.push_back('\n');
+    } else {
+      out.push_back(c);
+    }
+  }
+  return out;
+}
+
+void RdpSession::setClipboardText(const std::string& utf8) {
+  {
+    std::lock_guard<std::mutex> lk(clipMutex_);
+    if (hostClipboardText_ == utf8) return;
+    hostClipboardText_ = utf8;
+  }
+  clipboardDirty_ = true;  // pump thread picks this up and advertises formats
+}
+
+void RdpSession::sendClientFormatList() {
+  CliprdrClientContext* cb = cliprdr_.load();
+  if (!cb || !cb->ClientFormatList) return;
+
+  bool haveText;
+  {
+    std::lock_guard<std::mutex> lk(clipMutex_);
+    haveText = !hostClipboardText_.empty();
+  }
+
+  CLIPRDR_FORMAT formats[2];
+  memset(formats, 0, sizeof(formats));
+  UINT32 n = 0;
+  if (haveText) {
+    formats[n].formatId = CF_UNICODETEXT; formats[n].formatName = nullptr; n++;
+    formats[n].formatId = CF_TEXT;        formats[n].formatName = nullptr; n++;
+  }
+
+  CLIPRDR_FORMAT_LIST list;
+  memset(&list, 0, sizeof(list));
+  list.common.msgType = CB_FORMAT_LIST;
+  list.numFormats = n;
+  list.formats = formats;
+
+  UINT rc = cb->ClientFormatList(cb, &list);
+  if (rc != CHANNEL_RC_OK) {
+    fileLog(("[RDP] clipboard: ClientFormatList rc=" + std::to_string(rc)).c_str());
+  }
+}
+
+void RdpSession::onChannelConnected(void* context, const ChannelConnectedEventArgs* e) {
+  if (!e || !e->name || strcmp(e->name, CLIPRDR_SVC_CHANNEL_NAME) != 0) return;
+  RdpSession* self = getSelf((rdpContext*)context);
+  if (!self) return;
+
+  CliprdrClientContext* cb = (CliprdrClientContext*)e->pInterface;
+  if (!cb) return;
+
+  cb->custom = self;
+  cb->MonitorReady          = cliprdrMonitorReady;
+  cb->ServerCapabilities    = cliprdrServerCapabilities;
+  cb->ServerFormatList      = cliprdrServerFormatList;
+  cb->ServerFormatListResponse = cliprdrServerFormatListResponse;
+  cb->ServerFormatDataRequest  = cliprdrServerFormatDataRequest;
+  cb->ServerFormatDataResponse = cliprdrServerFormatDataResponse;
+
+  self->cliprdr_ = cb;
+  fileLog("[RDP] clipboard: cliprdr channel connected");
+}
+
+void RdpSession::onChannelDisconnected(void* context, const ChannelDisconnectedEventArgs* e) {
+  if (!e || !e->name || strcmp(e->name, CLIPRDR_SVC_CHANNEL_NAME) != 0) return;
+  RdpSession* self = getSelf((rdpContext*)context);
+  if (self) {
+    self->cliprdr_ = nullptr;
+    fileLog("[RDP] clipboard: cliprdr channel disconnected");
+  }
+}
+
+UINT RdpSession::cliprdrMonitorReady(CliprdrClientContext* ctx, const CLIPRDR_MONITOR_READY*) {
+  RdpSession* self = (RdpSession*)ctx->custom;
+
+  CLIPRDR_GENERAL_CAPABILITY_SET general;
+  memset(&general, 0, sizeof(general));
+  general.capabilitySetType = CB_CAPSTYPE_GENERAL;
+  general.capabilitySetLength = CB_CAPSTYPE_GENERAL_LEN;
+  general.version = CB_CAPS_VERSION_2;
+  general.generalFlags = CB_USE_LONG_FORMAT_NAMES;
+
+  CLIPRDR_CAPABILITIES caps;
+  memset(&caps, 0, sizeof(caps));
+  caps.cCapabilitiesSets = 1;
+  caps.capabilitySets = (CLIPRDR_CAPABILITY_SET*)&general;
+
+  UINT rc = ctx->ClientCapabilities(ctx, &caps);
+  if (rc != CHANNEL_RC_OK) return rc;
+
+  // Advertise whatever the host clipboard currently holds (possibly nothing).
+  if (self) self->sendClientFormatList();
+  return CHANNEL_RC_OK;
+}
+
+UINT RdpSession::cliprdrServerCapabilities(CliprdrClientContext*, const CLIPRDR_CAPABILITIES*) {
+  return CHANNEL_RC_OK;
+}
+
+UINT RdpSession::cliprdrServerFormatList(CliprdrClientContext* ctx, const CLIPRDR_FORMAT_LIST* list) {
+  RdpSession* self = (RdpSession*)ctx->custom;
+
+  // Acknowledge the list first (required by the protocol).
+  CLIPRDR_FORMAT_LIST_RESPONSE resp;
+  memset(&resp, 0, sizeof(resp));
+  resp.common.msgType = CB_FORMAT_LIST_RESPONSE;
+  resp.common.msgFlags = CB_RESPONSE_OK;
+  UINT rc = ctx->ClientFormatListResponse(ctx, &resp);
+  if (rc != CHANNEL_RC_OK) return rc;
+
+  // Pick a text format, preferring Unicode.
+  UINT32 want = 0;
+  for (UINT32 i = 0; list && i < list->numFormats; i++) {
+    UINT32 id = list->formats[i].formatId;
+    if (id == CF_UNICODETEXT) { want = CF_UNICODETEXT; break; }
+    if (id == CF_TEXT && want == 0) want = CF_TEXT;
+  }
+  if (want == 0) return CHANNEL_RC_OK;  // remote clipboard has no plain text
+
+  if (self) self->pendingRemoteFormat_ = want;
+
+  CLIPRDR_FORMAT_DATA_REQUEST req;
+  memset(&req, 0, sizeof(req));
+  req.common.msgType = CB_FORMAT_DATA_REQUEST;
+  req.requestedFormatId = want;
+  return ctx->ClientFormatDataRequest(ctx, &req);
+}
+
+UINT RdpSession::cliprdrServerFormatListResponse(CliprdrClientContext*,
+                                                 const CLIPRDR_FORMAT_LIST_RESPONSE*) {
+  return CHANNEL_RC_OK;
+}
+
+// Server wants our (host) clipboard data for a format it saw in our list.
+UINT RdpSession::cliprdrServerFormatDataRequest(CliprdrClientContext* ctx,
+                                                const CLIPRDR_FORMAT_DATA_REQUEST* req) {
+  RdpSession* self = (RdpSession*)ctx->custom;
+
+  std::string utf8;
+  if (self) {
+    std::lock_guard<std::mutex> lk(self->clipMutex_);
+    utf8 = self->hostClipboardText_;
+  }
+
+  UINT32 fmt = req ? req->requestedFormatId : CF_UNICODETEXT;
+  BYTE* out = nullptr;
+  UINT32 outLen = 0;
+
+  if (fmt == CF_UNICODETEXT) {
+    std::string crlf = normalizeToCrlf(utf8);
+    size_t wlen = 0;
+    WCHAR* wide = ConvertUtf8ToWCharAlloc(crlf.c_str(), &wlen);
+    if (wide) {
+      outLen = (UINT32)((wlen + 1) * sizeof(WCHAR));  // include terminating NUL
+      out = (BYTE*)malloc(outLen);
+      if (out) memcpy(out, wide, outLen);
+      else outLen = 0;
+      free(wide);
+    }
+  } else {  // CF_TEXT — 8-bit, NUL terminated
+    std::string crlf = normalizeToCrlf(utf8);
+    outLen = (UINT32)(crlf.size() + 1);
+    out = (BYTE*)malloc(outLen);
+    if (out) { memcpy(out, crlf.c_str(), crlf.size()); out[crlf.size()] = 0; }
+    else outLen = 0;
+  }
+
+  CLIPRDR_FORMAT_DATA_RESPONSE resp;
+  memset(&resp, 0, sizeof(resp));
+  resp.common.msgType = CB_FORMAT_DATA_RESPONSE;
+  resp.common.msgFlags = out ? CB_RESPONSE_OK : CB_RESPONSE_FAIL;
+  resp.common.dataLen = outLen;
+  resp.requestedFormatData = out;
+
+  UINT rc = ctx->ClientFormatDataResponse(ctx, &resp);
+  free(out);
+  return rc;
+}
+
+// Server answered our request for the remote clipboard contents.
+UINT RdpSession::cliprdrServerFormatDataResponse(CliprdrClientContext* ctx,
+                                                 const CLIPRDR_FORMAT_DATA_RESPONSE* resp) {
+  RdpSession* self = (RdpSession*)ctx->custom;
+  if (!self || !resp) return CHANNEL_RC_OK;
+  if (!(resp->common.msgFlags & CB_RESPONSE_OK)) return CHANNEL_RC_OK;
+
+  const BYTE* data = resp->requestedFormatData;
+  UINT32 len = resp->common.dataLen;
+  if (!data || len == 0) return CHANNEL_RC_OK;
+
+  std::string utf8;
+  if (self->pendingRemoteFormat_ == CF_TEXT) {
+    utf8.assign((const char*)data, len);
+  } else {  // CF_UNICODETEXT (UTF-16LE)
+    size_t u8len = 0;
+    char* conv = ConvertWCharNToUtf8Alloc((const WCHAR*)data, len / sizeof(WCHAR), &u8len);
+    if (conv) { utf8.assign(conv, u8len); free(conv); }
+  }
+
+  // Trim any trailing NULs the source included in dataLen.
+  while (!utf8.empty() && utf8.back() == '\0') utf8.pop_back();
+  utf8 = normalizeToLf(utf8);
+
+  // Keep our cached copy in sync so we don't immediately re-advertise it back.
+  {
+    std::lock_guard<std::mutex> lk(self->clipMutex_);
+    self->hostClipboardText_ = utf8;
+  }
+
+  if (self->listener_) self->listener_->onClipboardText(utf8.c_str());
+  return CHANNEL_RC_OK;
+}
+
+#else  // !TG_CLIPBOARD
+
+void RdpSession::setClipboardText(const std::string&) {}
+
+#endif  // TG_CLIPBOARD
 

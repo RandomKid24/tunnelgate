@@ -14,6 +14,7 @@ export interface StoredAuthSession {
   employeeName?: string;
   encryptedToken: string;
   loggedInAt: string;
+  isSuperuser: boolean;
 }
 
 interface Schema {

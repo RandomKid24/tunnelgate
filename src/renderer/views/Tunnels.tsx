@@ -18,6 +18,7 @@ interface Props {
   onDisconnect: (id: string) => void;
   onViewScreen: (tunnel: TunnelWithState) => void;
   onViewLogs: (tunnelId: string) => void;
+  isSuperuser: boolean;
 }
 
 function TunnelModal({
@@ -119,7 +120,7 @@ function ChecklistItem({ text }: { text: string }) {
   );
 }
 
-export function Tunnels({ tunnels, loading, errors, onAdd, onUpdate, onDelete, onConnect, onDisconnect, onViewScreen, onViewLogs }: Props) {
+export function Tunnels({ tunnels, loading, errors, onAdd, onUpdate, onDelete, onConnect, onDisconnect, onViewScreen, onViewLogs, isSuperuser }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [editingTunnel, setEditingTunnel] = useState<TunnelWithState | null>(null);
   const [search, setSearch] = useState('');
@@ -286,6 +287,7 @@ export function Tunnels({ tunnels, loading, errors, onAdd, onUpdate, onDelete, o
               onViewScreen={() => onViewScreen(tunnel)}
               onViewLogs={() => onViewLogs(tunnel.id)}
               connectError={errors[tunnel.id]}
+              canEdit={isSuperuser}
             />
           </React.Fragment>
         ))}

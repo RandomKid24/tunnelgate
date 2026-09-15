@@ -77,7 +77,15 @@ function toPublicSession(session: StoredAuthSession): HrmsSession {
     username: session.username,
     employeeName: session.employeeName,
     loggedInAt: session.loggedInAt,
+    isSuperuser: session.isSuperuser,
   };
+}
+
+function requireSuperuser(): void {
+  const session = getAuthSession();
+  if (!session?.isSuperuser) {
+    throw new Error('Only a superuser can view or edit a tunnel\'s configuration.');
+  }
 }
 
 async function checkWifiGate(): Promise<void> {
@@ -146,6 +154,7 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
       employeeName: result.employeeName,
       encryptedToken: credentialStore.encrypt(result.token),
       loggedInAt: new Date().toISOString(),
+      isSuperuser: result.isSuperuser,
     };
 
     setAuthSession(session);
@@ -271,6 +280,7 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
   });
 
   ipcMain.handle('tunnels:decrypt-password', async (_event, encryptedBase64: string) => {
+    requireSuperuser();
     try {
       return credentialStore.decrypt(encryptedBase64);
     } catch {
@@ -309,6 +319,7 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
   });
 
   ipcMain.handle(IPC_CHANNELS.TUNNELS_UPDATE, async (_event, data: TunnelConfig & { password?: string }) => {
+    requireSuperuser();
     const tunnels = getTunnels();
     const index = tunnels.findIndex((t) => t.id === data.id);
     if (index === -1) throw new Error('Tunnel not found');

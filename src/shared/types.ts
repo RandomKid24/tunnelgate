@@ -57,6 +57,7 @@ export interface HrmsSession {
   username: string;
   employeeName?: string;
   loggedInAt: string;
+  isSuperuser: boolean;
 }
 
 export const IPC_CHANNELS = {

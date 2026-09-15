@@ -2,6 +2,7 @@ export interface HrmsLoginResult {
   token: string;
   username: string;
   employeeName?: string;
+  isSuperuser: boolean;
 }
 
 export interface HrmsWifiValidation {
@@ -64,7 +65,12 @@ export async function hrmsLogin(baseUrl: string, username: string, password: str
   const employeeName = data.employee
     ? [data.employee.first_name, data.employee.last_name].filter(Boolean).join(' ').trim() || undefined
     : undefined;
-  return { token: data.token, username: data.user?.username || username, employeeName };
+  return {
+    token: data.token,
+    username: data.user?.username || username,
+    employeeName,
+    isSuperuser: !!data.user?.is_superuser,
+  };
 }
 
 export async function hrmsValidateWifi(

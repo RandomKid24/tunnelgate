@@ -193,6 +193,7 @@ function App() {
                 setSelectedLogTunnelId(tunnelId);
                 setTab('logs');
               }}
+              isSuperuser={!!session?.isSuperuser}
             />
           )}
           {tab === 'logs' && (

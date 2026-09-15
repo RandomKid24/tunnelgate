@@ -12,6 +12,7 @@ interface Props {
   onViewScreen?: () => void;
   onViewLogs?: () => void;
   connectError?: string;
+  canEdit?: boolean;
 }
 
 const statusColors: Record<string, string> = {
@@ -53,7 +54,7 @@ function formatDuration(seconds: number): string {
   return `${hrs}h ${remainMins}m ${secs}s`;
 }
 
-export function TunnelCard({ tunnel, onConnect, onDisconnect, onEdit, onDelete, onViewScreen, onViewLogs, connectError }: Props) {
+export function TunnelCard({ tunnel, onConnect, onDisconnect, onEdit, onDelete, onViewScreen, onViewLogs, connectError, canEdit = true }: Props) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [duration, setDuration] = useState(0);
   const connectedAtRef = useRef<number | null>(null);
@@ -217,9 +218,11 @@ export function TunnelCard({ tunnel, onConnect, onDisconnect, onEdit, onDelete, 
             Connect
           </ActionButton>
         )}
-        <ActionButton onClick={() => onEdit(tunnel)} color="var(--accent-blue)" variant="secondary" icon={EditIcon}>
-          Edit
-        </ActionButton>
+        {canEdit && (
+          <ActionButton onClick={() => onEdit(tunnel)} color="var(--accent-blue)" variant="secondary" icon={EditIcon}>
+            Edit
+          </ActionButton>
+        )}
         {onViewLogs && (
           <ActionButton onClick={onViewLogs} color="var(--text-secondary)" variant="secondary" icon={LogsListIcon}>
             Logs

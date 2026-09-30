@@ -72,6 +72,9 @@ export const IPC_CHANNELS = {
   TUNNELS_EXPORT_LOGS: 'tunnels:export-logs',
   SERVERS_LIST: 'servers:list',
   SERVERS_SET_CREDENTIALS: 'servers:set-credentials',
+  SERVERS_ADD_LOCAL: 'servers:add-local',
+  SERVERS_UPDATE_LOCAL: 'servers:update-local',
+  SERVERS_DELETE_LOCAL: 'servers:delete-local',
   SETTINGS_GET: 'settings:get',
   SETTINGS_SET: 'settings:set',
   APP_GET_VERSION: 'app:get-version',
@@ -130,11 +133,29 @@ export interface UpdateInfo {
   hasUpdate: boolean;
 }
 
-export interface HrmsServerList {
-  servers: HrmsServer[];
+export interface ServerEntry {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  address: string;
+  description?: string;
+  source: 'hrms' | 'local';
+}
+
+export interface ServerList {
+  servers: ServerEntry[];
   unrestricted: boolean;
 }
 
+export interface LocalServerInput {
+  name: string;
+  host: string;
+  port: number;
+  description?: string;
+}
+
+// Raw shape returned by the HRMS API.
 export interface HrmsServer {
   id: number;
   name: string;
@@ -143,5 +164,10 @@ export interface HrmsServer {
   address: string;
   protocol: string;
   description?: string;
+}
+
+export interface HrmsServerList {
+  servers: HrmsServer[];
+  unrestricted: boolean;
 }
 

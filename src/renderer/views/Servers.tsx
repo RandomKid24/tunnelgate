@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { HrmsServer } from '../../shared/types';
+import { ServerEntry, LocalServerInput } from '../../shared/types';
 import { formatIpcError } from '../lib/format';
 import { WifiStatusBar } from '../components/WifiStatusBar';
 
 interface Props {
-  onConnect: (server: HrmsServer, username: string, password: string) => Promise<void>;
+  isSuperuser?: boolean;
+  onConnect: (server: ServerEntry, username: string, password: string) => Promise<void>;
   onAuthExpired: () => void;
 }
 
@@ -14,7 +15,7 @@ function CredentialsModal({
   onSubmit,
   onCancel,
 }: {
-  server: HrmsServer;
+  server: ServerEntry;
   onSubmit: (username: string, password: string) => Promise<void>;
   onCancel: () => void;
 }) {
@@ -168,12 +169,102 @@ function CredentialsModal({
   );
 }
 
-export function Servers({ onConnect, onAuthExpired }: Props) {
-  const [servers, setServers] = useState<HrmsServer[]>([]);
+const inputLabelStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: 'var(--text-secondary)' };
+
+function ServerFormModal({
+  server,
+  onSubmit,
+  onCancel,
+}: {
+  server: ServerEntry | null;
+  onSubmit: (input: LocalServerInput) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState(server?.name ?? '');
+  const [host, setHost] = useState(server?.host ?? '');
+  const [port, setPort] = useState(String(server?.port ?? 3389));
+  const [description, setDescription] = useState(server?.description ?? '');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onCancel]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      await onSubmit({ name, host, port: Number(port), description });
+    } catch (err: any) {
+      setError(formatIpcError(err));
+      setSubmitting(false);
+    }
+  };
+
+  return ReactDOM.createPortal(
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'var(--overlay-bg)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 }}
+      onClick={onCancel}
+    >
+      <form
+        onSubmit={handleSubmit}
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: 380, padding: 24, background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-modal)', display: 'flex', flexDirection: 'column', gap: 14 }}
+      >
+        <div style={{ fontSize: 16, fontWeight: 700 }}>{server ? 'Edit server' : 'Add server'}</div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: -8 }}>
+          Direct server (superuser only). Not stored in HRMS.
+        </div>
+
+        <label style={inputLabelStyle}>
+          Name
+          <input className="tg-input" value={name} onChange={(e) => setName(e.target.value)} required autoFocus disabled={submitting} />
+        </label>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <label style={{ ...inputLabelStyle, flex: 1 }}>
+            Host / IP
+            <input className="tg-input" value={host} onChange={(e) => setHost(e.target.value)} required placeholder="192.168.1.102" disabled={submitting} />
+          </label>
+          <label style={{ ...inputLabelStyle, width: 90 }}>
+            Port
+            <input className="tg-input" type="number" min={1} max={65535} value={port} onChange={(e) => setPort(e.target.value)} required disabled={submitting} />
+          </label>
+        </div>
+        <label style={inputLabelStyle}>
+          Description (optional)
+          <input className="tg-input" value={description} onChange={(e) => setDescription(e.target.value)} disabled={submitting} />
+        </label>
+
+        {error && <div style={{ fontSize: 12, color: 'var(--accent-red, #ef4444)' }}>{error}</div>}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button type="button" onClick={onCancel} disabled={submitting} style={{ padding: '8px 14px', fontSize: 13, borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+            Cancel
+          </button>
+          <button type="submit" disabled={submitting} style={{ padding: '8px 16px', fontSize: 13, fontWeight: 600, borderRadius: 'var(--radius-xs)', border: 'none', background: 'var(--accent-blue)', color: '#fff', cursor: submitting ? 'default' : 'pointer', opacity: submitting ? 0.7 : 1 }}>
+            {submitting ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </form>
+    </div>,
+    document.body,
+  );
+}
+
+export function Servers({ onConnect, onAuthExpired, isSuperuser }: Props) {
+  const [servers, setServers] = useState<ServerEntry[]>([]);
   const [unrestricted, setUnrestricted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<HrmsServer | null>(null);
+  const [selected, setSelected] = useState<ServerEntry | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<ServerEntry | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -200,6 +291,14 @@ export function Servers({ onConnect, onAuthExpired }: Props) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Servers</h1>
         <WifiStatusBar />
+        {isSuperuser && (
+          <button
+            onClick={() => { setEditing(null); setFormOpen(true); }}
+            style={{ padding: '6px 12px', fontSize: 12, fontWeight: 600, borderRadius: 'var(--radius-xs)', border: 'none', background: 'var(--accent-blue)', color: '#fff', cursor: 'pointer' }}
+          >
+            + Add server
+          </button>
+        )}
         <button
           onClick={load}
           disabled={loading}
@@ -235,7 +334,9 @@ export function Servers({ onConnect, onAuthExpired }: Props) {
 
       {!loading && !error && servers.length === 0 && (
         <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-          No servers are assigned to your account. Ask an administrator to grant you access in HRMS.
+          {isSuperuser
+            ? 'No servers yet. Add one in HRMS (Admin → Servers), or use "+ Add server" to add a direct server.'
+            : 'No servers are assigned to your account. Ask an administrator to grant you access in HRMS.'}
         </div>
       )}
 
@@ -254,7 +355,14 @@ export function Servers({ onConnect, onAuthExpired }: Props) {
               gap: 6,
             }}
           >
-            <div style={{ fontSize: 15, fontWeight: 600 }}>{server.name}</div>
+            <div style={{ fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+              {server.name}
+              {server.source === 'local' && (
+                <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                  DIRECT
+                </span>
+              )}
+            </div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{server.address}</div>
             {server.description && (
               <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{server.description}</div>
@@ -275,9 +383,46 @@ export function Servers({ onConnect, onAuthExpired }: Props) {
             >
               Connect
             </button>
+            {isSuperuser && server.source === 'local' && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => { setEditing(server); setFormOpen(true); }}
+                  style={{ flex: 1, padding: '5px 10px', fontSize: 12, borderRadius: 'var(--radius-xs)', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!window.confirm(`Delete "${server.name}"?`)) return;
+                    try {
+                      await window.cloudflareRdp.servers.deleteLocal(server.id);
+                      await load();
+                    } catch (err: any) {
+                      setError(formatIpcError(err));
+                    }
+                  }}
+                  style={{ flex: 1, padding: '5px 10px', fontSize: 12, borderRadius: 'var(--radius-xs)', border: '1px solid rgba(239,68,68,0.4)', background: 'transparent', color: 'var(--accent-red, #ef4444)', cursor: 'pointer' }}
+                >
+                  Delete
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
+
+      {formOpen && (
+        <ServerFormModal
+          server={editing}
+          onCancel={() => setFormOpen(false)}
+          onSubmit={async (input) => {
+            if (editing) await window.cloudflareRdp.servers.updateLocal(editing.id, input);
+            else await window.cloudflareRdp.servers.addLocal(input);
+            setFormOpen(false);
+            await load();
+          }}
+        />
+      )}
 
       {selected && (
         <CredentialsModal

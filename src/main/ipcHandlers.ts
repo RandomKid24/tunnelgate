@@ -1,7 +1,7 @@
 import { ipcMain, dialog, app, BrowserWindow, shell } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
-import { IPC_CHANNELS, TunnelConfig, TunnelFormData, AppSettings, LogEntry, RdpViewState, UpdateInfo, HrmsSession, WifiStatusResult, HrmsServerList } from '../shared/types';
-import { getTunnels, setTunnels, getSettings, setSettings, getAuthSession, setAuthSession, StoredAuthSession } from './store';
+import { IPC_CHANNELS, TunnelConfig, TunnelFormData, AppSettings, LogEntry, RdpViewState, UpdateInfo, HrmsSession, WifiStatusResult, ServerEntry, ServerList, LocalServerInput } from '../shared/types';
+import { getTunnels, setTunnels, getSettings, setSettings, getAuthSession, setAuthSession, StoredAuthSession, getLocalServers, setLocalServers } from './store';
 import { credentialStore } from './credentialStore';
 import { TunnelManager } from './tunnelManager';
 import { RdpViewManager } from './rdpViewManager';
@@ -92,11 +92,53 @@ function toPublicSession(session: StoredAuthSession): HrmsSession {
   };
 }
 
-function requireSuperuser(): void {
+function requireSuperuser(what = 'a tunnel\'s configuration'): void {
   const session = getAuthSession();
   if (!session?.isSuperuser) {
-    throw new Error('Only a superuser can view or edit a tunnel\'s configuration.');
+    throw new Error(`Only a superuser can view or edit ${what}.`);
   }
+}
+
+const HOST_REGEX = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*|\[[0-9a-fA-F:.]+\]|[0-9a-fA-F:]*:[0-9a-fA-F:.]*)$/;
+
+function formatAddress(host: string, port: number): string {
+  return host.includes(':') && !host.startsWith('[') ? `[${host}]:${port}` : `${host}:${port}`;
+}
+
+function normalizeLocalServer(input: LocalServerInput): Omit<ServerEntry, 'id' | 'source'> {
+  const name = String(input.name || '').trim();
+  let host = String(input.host || '').trim().toLowerCase();
+  const port = Number(input.port) || 3389;
+  if (!name) throw new Error('Server name is required.');
+  if (!host || !HOST_REGEX.test(host)) throw new Error('Enter a valid hostname or IP address (no http:// or port).');
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Port must be between 1 and 65535.');
+  host = host.replace(/^\[|\]$/g, '');
+  return { name, host, port, address: formatAddress(host, port), description: input.description?.trim() || undefined };
+}
+
+async function loadServerList(): Promise<ServerList> {
+  const session = getAuthSession();
+  if (!session) throw new Error('Not logged in. Please sign in with your HRMS account first.');
+  let token: string;
+  try {
+    token = credentialStore.decrypt(session.encryptedToken);
+  } catch {
+    throw new Error('Your session has expired. Please log in again.');
+  }
+  const hrms = await hrmsGetMyServers(session.baseUrl, token);
+  writeLog('system', 'Servers', 'info', `HRMS returned ${hrms.servers.length} RDP server(s), unrestricted=${hrms.unrestricted}`);
+  const fromHrms: ServerEntry[] = hrms.servers.map((s) => ({
+    id: `hrms-${s.id}`,
+    name: s.name,
+    host: s.host,
+    port: s.port,
+    address: s.address,
+    description: s.description || undefined,
+    source: 'hrms',
+  }));
+  // Direct servers are a superuser-only feature; never expose them to others.
+  const local = session.isSuperuser ? getLocalServers() : [];
+  return { servers: [...fromHrms, ...local], unrestricted: hrms.unrestricted };
 }
 
 async function checkWifiGate(): Promise<void> {
@@ -283,28 +325,34 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS.SERVERS_LIST, async (): Promise<HrmsServerList> => {
-    const session = getAuthSession();
-    if (!session) throw new Error('Not logged in. Please sign in with your HRMS account first.');
-    let token: string;
-    try {
-      token = credentialStore.decrypt(session.encryptedToken);
-    } catch {
-      throw new Error('Your session has expired. Please log in again.');
-    }
-    return hrmsGetMyServers(session.baseUrl, token);
+  ipcMain.handle(IPC_CHANNELS.SERVERS_LIST, (): Promise<ServerList> => loadServerList());
+
+  ipcMain.handle(IPC_CHANNELS.SERVERS_ADD_LOCAL, async (_event, input: LocalServerInput): Promise<ServerEntry> => {
+    requireSuperuser('direct servers');
+    const entry: ServerEntry = { id: `local-${uuidv4()}`, source: 'local', ...normalizeLocalServer(input) };
+    setLocalServers([...getLocalServers(), entry]);
+    return entry;
   });
 
-  ipcMain.handle(IPC_CHANNELS.SERVERS_SET_CREDENTIALS, async (_event, serverId: number, username: string, password: string): Promise<string> => {
-    const session = getAuthSession();
-    if (!session) throw new Error('Not logged in. Please sign in with your HRMS account first.');
-    let token: string;
-    try {
-      token = credentialStore.decrypt(session.encryptedToken);
-    } catch {
-      throw new Error('Your session has expired. Please log in again.');
-    }
-    const server = (await hrmsGetMyServers(session.baseUrl, token)).servers.find((s) => s.id === serverId);
+  ipcMain.handle(IPC_CHANNELS.SERVERS_UPDATE_LOCAL, async (_event, id: string, input: LocalServerInput): Promise<ServerEntry> => {
+    requireSuperuser('direct servers');
+    const servers = getLocalServers();
+    const index = servers.findIndex((s) => s.id === id);
+    if (index === -1) throw new Error('Server not found.');
+    const updated: ServerEntry = { id, source: 'local', ...normalizeLocalServer(input) };
+    servers[index] = updated;
+    setLocalServers(servers);
+    return updated;
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SERVERS_DELETE_LOCAL, async (_event, id: string): Promise<void> => {
+    requireSuperuser('direct servers');
+    setLocalServers(getLocalServers().filter((s) => s.id !== id));
+    serverSessions.delete(`server-${id}`);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SERVERS_SET_CREDENTIALS, async (_event, serverId: string, username: string, password: string): Promise<string> => {
+    const server = (await loadServerList()).servers.find((s) => s.id === serverId);
     if (!server) throw new Error('You no longer have access to this server.');
     if (!username.trim()) throw new Error('Username is required.');
 

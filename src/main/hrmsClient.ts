@@ -115,7 +115,7 @@ export async function hrmsGetMyServers(baseUrl: string, token: string): Promise<
     throw new Error(data?.error || `Could not load servers (HTTP ${res.status}).`);
   }
   return {
-    servers: (data.servers as HrmsServer[]).filter((s) => !s.protocol || s.protocol === 'rdp'),
+    servers: (data.servers as HrmsServer[]).filter((s) => !s.protocol || String(s.protocol).toLowerCase() === 'rdp'),
     unrestricted: !!data.unrestricted,
   };
 }

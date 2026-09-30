@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { pqElectronPreload } from 'pq-befu/integrations/electron';
-import { IPC_CHANNELS, TunnelFormData, TunnelConfig, AppSettings, TunnelRuntimeState, LogEntry, UpdateInfo, HrmsSession, WifiStatusResult, DisplayInfo, HrmsServerList } from '../shared/types';
+import { IPC_CHANNELS, TunnelFormData, TunnelConfig, AppSettings, TunnelRuntimeState, LogEntry, UpdateInfo, HrmsSession, WifiStatusResult, DisplayInfo, ServerEntry, ServerList, LocalServerInput } from '../shared/types';
 
 pqElectronPreload();
 
@@ -22,11 +22,20 @@ const api = {
   },
 
   servers: {
-    list: (): Promise<HrmsServerList> =>
+    list: (): Promise<ServerList> =>
       ipcRenderer.invoke(IPC_CHANNELS.SERVERS_LIST),
 
-    setCredentials: (serverId: number, username: string, password: string): Promise<string> =>
+    setCredentials: (serverId: string, username: string, password: string): Promise<string> =>
       ipcRenderer.invoke(IPC_CHANNELS.SERVERS_SET_CREDENTIALS, serverId, username, password),
+
+    addLocal: (input: LocalServerInput): Promise<ServerEntry> =>
+      ipcRenderer.invoke(IPC_CHANNELS.SERVERS_ADD_LOCAL, input),
+
+    updateLocal: (id: string, input: LocalServerInput): Promise<ServerEntry> =>
+      ipcRenderer.invoke(IPC_CHANNELS.SERVERS_UPDATE_LOCAL, id, input),
+
+    deleteLocal: (id: string): Promise<void> =>
+      ipcRenderer.invoke(IPC_CHANNELS.SERVERS_DELETE_LOCAL, id),
   },
 
   tunnels: {

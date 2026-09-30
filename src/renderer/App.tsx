@@ -1,21 +1,23 @@
 import React, { useState } from 'react';
 import { Servers } from './views/Servers';
+import { Tunnels } from './views/Tunnels';
 import { Logs } from './views/Logs';
 import { Settings } from './views/Settings';
 import { RdpView } from './views/RdpView';
 import { Login } from './views/Login';
 import { UserMenu } from './components/UserMenu';
-import { HrmsServer, TunnelConfig } from '../shared/types';
+import { ServerEntry, TunnelConfig } from '../shared/types';
+import { useTunnels, TunnelWithState } from './hooks/useTunnels';
 import { useUpdateCheck } from './hooks/useUpdateCheck';
 import { useAuth } from './hooks/useAuth';
 
-type Tab = 'servers' | 'logs' | 'settings';
+type Tab = 'servers' | 'tunnels' | 'logs' | 'settings';
 
 interface ViewingServer extends TunnelConfig {
   runtime: { tunnelId: string; status: 'connected' };
 }
 
-function toViewingServer(server: HrmsServer, sessionId: string, username: string): ViewingServer {
+function toViewingServer(server: ServerEntry, sessionId: string, username: string): ViewingServer {
   return {
     id: sessionId,
     name: server.name,
@@ -63,15 +65,20 @@ function SettingsIcon() {
 
 function App() {
   const [tab, setTab] = useState<Tab>('servers');
-  const [viewingTunnel, setViewingTunnel] = useState<ViewingServer | null>(null);
+  const [viewingTunnel, setViewingTunnel] = useState<ViewingServer | TunnelWithState | null>(null);
+  const [selectedLogTunnelId, setSelectedLogTunnelId] = useState<string | undefined>(undefined);
   const [updateDismissed, setUpdateDismissed] = useState<boolean>(
     () => sessionStorage.getItem('update-banner-dismissed') === '1',
   );
   const { session, loading: authLoading, login, logout } = useAuth();
+  const { tunnels, loading, errors, add, update, remove, connect, disconnect, reload } = useTunnels(logout);
   const updateInfo = useUpdateCheck();
+  const isSuperuser = !!session?.isSuperuser;
 
   const navItems: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'servers', label: 'Servers', icon: <TunnelsIcon /> },
+    // Manual Cloudflare tunnels: superusers only (add servers directly, no HRMS needed)
+    ...(isSuperuser ? [{ id: 'tunnels' as Tab, label: 'Tunnels', icon: <TunnelsIcon /> }] : []),
     { id: 'logs', label: 'Logs', icon: <LogsIcon /> },
     { id: 'settings', label: 'Settings', icon: <SettingsIcon /> },
   ];
@@ -91,7 +98,7 @@ function App() {
   if (viewingTunnel) {
     return (
       <div style={{ height: '100vh', background: '#000' }}>
-        <RdpView tunnel={viewingTunnel} onBack={() => setViewingTunnel(null)} />
+        <RdpView tunnel={viewingTunnel} onBack={() => setViewingTunnel(null)} onServerName={reload} />
       </div>
     );
   }
@@ -196,6 +203,7 @@ function App() {
         <main style={{ flex: 1, overflow: 'hidden' }}>
           {tab === 'servers' && (
             <Servers
+              isSuperuser={isSuperuser}
               onAuthExpired={logout}
               onConnect={async (server, username, password) => {
                 const sessionId = await window.cloudflareRdp.servers.setCredentials(server.id, username, password);
@@ -203,7 +211,31 @@ function App() {
               }}
             />
           )}
-          {tab === 'logs' && <Logs tunnels={[]} />}
+          {tab === 'tunnels' && isSuperuser && (
+            <Tunnels
+              tunnels={tunnels}
+              loading={loading}
+              errors={errors}
+              onAdd={add}
+              onUpdate={update}
+              onDelete={remove}
+              onConnect={connect}
+              onDisconnect={disconnect}
+              onViewScreen={setViewingTunnel}
+              onViewLogs={(tunnelId) => {
+                setSelectedLogTunnelId(tunnelId);
+                setTab('logs');
+              }}
+              isSuperuser={isSuperuser}
+            />
+          )}
+          {tab === 'logs' && (
+            <Logs
+              tunnels={isSuperuser ? tunnels : []}
+              initialTunnelId={selectedLogTunnelId}
+              onClearFilter={() => setSelectedLogTunnelId(undefined)}
+            />
+          )}
           {tab === 'settings' && <Settings session={session} onLogout={logout} />}
         </main>
       </div>

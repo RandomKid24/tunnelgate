@@ -1,4 +1,4 @@
-import { TunnelConfig, TunnelRuntimeState, AppSettings, LogEntry, TunnelFormData, UpdateInfo, HrmsSession, WifiStatusResult, HrmsServerList } from '../shared/types';
+import { TunnelConfig, TunnelRuntimeState, AppSettings, LogEntry, TunnelFormData, UpdateInfo, HrmsSession, WifiStatusResult, ServerEntry, ServerList, LocalServerInput } from '../shared/types';
 
 declare global {
   interface Window {
@@ -18,8 +18,11 @@ declare global {
         getStatus: (bypassCache?: boolean) => Promise<WifiStatusResult>;
       };
       servers: {
-        list: () => Promise<HrmsServerList>;
-        setCredentials: (serverId: number, username: string, password: string) => Promise<string>;
+        list: () => Promise<ServerList>;
+        setCredentials: (serverId: string, username: string, password: string) => Promise<string>;
+        addLocal: (input: LocalServerInput) => Promise<ServerEntry>;
+        updateLocal: (id: string, input: LocalServerInput) => Promise<ServerEntry>;
+        deleteLocal: (id: string) => Promise<void>;
       };
       tunnels: {
         list: () => Promise<TunnelConfig[]>;

@@ -1,5 +1,5 @@
 import Store from 'electron-store';
-import { TunnelConfig, AppSettings } from '../shared/types';
+import { TunnelConfig, AppSettings, ServerEntry } from '../shared/types';
 
 export interface WindowBounds {
   x?: number;
@@ -19,6 +19,7 @@ export interface StoredAuthSession {
 
 interface Schema {
   tunnels: TunnelConfig[];
+  localServers: ServerEntry[];
   settings: AppSettings;
   windowBounds: WindowBounds;
   auth: StoredAuthSession | null;
@@ -54,6 +55,10 @@ export const store = new Store<Schema>({
         required: ['id', 'name', 'hostname', 'username', 'encryptedPassword', 'rememberAfterSession', 'createdAt'],
       },
     },
+    localServers: {
+      type: 'array',
+      default: [],
+    },
     settings: {
       type: 'object',
       default: DEFAULT_SETTINGS,
@@ -75,6 +80,7 @@ export const store = new Store<Schema>({
   },
   defaults: {
     tunnels: [],
+    localServers: [],
     settings: DEFAULT_SETTINGS,
     windowBounds: {},
     auth: null,
@@ -87,6 +93,14 @@ export function getTunnels(): TunnelConfig[] {
 
 export function setTunnels(tunnels: TunnelConfig[]): void {
   store.set('tunnels', tunnels);
+}
+
+export function getLocalServers(): ServerEntry[] {
+  return store.get('localServers', []);
+}
+
+export function setLocalServers(servers: ServerEntry[]): void {
+  store.set('localServers', servers);
 }
 
 export function getWindowBounds(): { x: number; y: number; width: number; height: number } | undefined {

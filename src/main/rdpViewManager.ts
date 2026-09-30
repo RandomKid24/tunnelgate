@@ -119,6 +119,7 @@ export class RdpViewManager {
     serverHostname?: string,
     width?: number,
     height?: number,
+    targetHost: string = '127.0.0.1',
   ): Promise<boolean> {
     if (!this.addonAvailable || !this.addon) {
       const msg = 'Native RDP addon not available: ' + (this.addonLoadError || 'unknown error');
@@ -163,7 +164,7 @@ export class RdpViewManager {
         }
 
         const sessionId = this.addon.createSession(
-          '127.0.0.1', port, width, height, username, password, serverHostname ?? '127.0.0.1',
+          targetHost, port, width, height, username, password, serverHostname ?? targetHost,
           (x, y, w, h, buf) => {
             this.forwardFrame(tunnelId, x, y, w, h, buf);
           },

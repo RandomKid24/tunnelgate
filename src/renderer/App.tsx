@@ -1,15 +1,33 @@
 import React, { useState } from 'react';
-import { Tunnels } from './views/Tunnels';
+import { Servers } from './views/Servers';
 import { Logs } from './views/Logs';
 import { Settings } from './views/Settings';
 import { RdpView } from './views/RdpView';
 import { Login } from './views/Login';
 import { UserMenu } from './components/UserMenu';
-import { useTunnels, TunnelWithState } from './hooks/useTunnels';
+import { HrmsServer, TunnelConfig } from '../shared/types';
 import { useUpdateCheck } from './hooks/useUpdateCheck';
 import { useAuth } from './hooks/useAuth';
 
-type Tab = 'tunnels' | 'logs' | 'settings';
+type Tab = 'servers' | 'logs' | 'settings';
+
+interface ViewingServer extends TunnelConfig {
+  runtime: { tunnelId: string; status: 'connected' };
+}
+
+function toViewingServer(server: HrmsServer, sessionId: string, username: string): ViewingServer {
+  return {
+    id: sessionId,
+    name: server.name,
+    hostname: server.host,
+    port: server.port,
+    username,
+    encryptedPassword: '',
+    rememberAfterSession: false,
+    createdAt: new Date().toISOString(),
+    runtime: { tunnelId: sessionId, status: 'connected' },
+  };
+}
 
 function TunnelsIcon() {
   return (
@@ -44,18 +62,16 @@ function SettingsIcon() {
 }
 
 function App() {
-  const [tab, setTab] = useState<Tab>('tunnels');
-  const [viewingTunnel, setViewingTunnel] = useState<TunnelWithState | null>(null);
-  const [selectedLogTunnelId, setSelectedLogTunnelId] = useState<string | undefined>(undefined);
+  const [tab, setTab] = useState<Tab>('servers');
+  const [viewingTunnel, setViewingTunnel] = useState<ViewingServer | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState<boolean>(
     () => sessionStorage.getItem('update-banner-dismissed') === '1',
   );
   const { session, loading: authLoading, login, logout } = useAuth();
-  const { tunnels, loading, errors, add, update, remove, connect, disconnect, reload } = useTunnels(logout);
   const updateInfo = useUpdateCheck();
 
   const navItems: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'tunnels', label: 'Tunnels', icon: <TunnelsIcon /> },
+    { id: 'servers', label: 'Servers', icon: <TunnelsIcon /> },
     { id: 'logs', label: 'Logs', icon: <LogsIcon /> },
     { id: 'settings', label: 'Settings', icon: <SettingsIcon /> },
   ];
@@ -75,7 +91,7 @@ function App() {
   if (viewingTunnel) {
     return (
       <div style={{ height: '100vh', background: '#000' }}>
-        <RdpView tunnel={viewingTunnel} onBack={() => setViewingTunnel(null)} onServerName={reload} />
+        <RdpView tunnel={viewingTunnel} onBack={() => setViewingTunnel(null)} />
       </div>
     );
   }
@@ -146,7 +162,7 @@ function App() {
         }}>
           <div style={{ padding: '0 16px 20px' }}>
             <div style={{ fontSize: 16, fontWeight: 700 }}>TunnelGate</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>One-click RDP tunnels</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Remote desktop access</div>
           </div>
 
           {navItems.map((item) => (
@@ -178,31 +194,16 @@ function App() {
         </nav>
 
         <main style={{ flex: 1, overflow: 'hidden' }}>
-          {tab === 'tunnels' && (
-            <Tunnels
-              tunnels={tunnels}
-              loading={loading}
-              errors={errors}
-              onAdd={add}
-              onUpdate={update}
-              onDelete={remove}
-              onConnect={connect}
-              onDisconnect={disconnect}
-              onViewScreen={setViewingTunnel}
-              onViewLogs={(tunnelId) => {
-                setSelectedLogTunnelId(tunnelId);
-                setTab('logs');
+          {tab === 'servers' && (
+            <Servers
+              onAuthExpired={logout}
+              onConnect={async (server, username, password) => {
+                const sessionId = await window.cloudflareRdp.servers.setCredentials(server.id, username, password);
+                setViewingTunnel(toViewingServer(server, sessionId, username));
               }}
-              isSuperuser={!!session?.isSuperuser}
             />
           )}
-          {tab === 'logs' && (
-            <Logs
-              tunnels={tunnels}
-              initialTunnelId={selectedLogTunnelId}
-              onClearFilter={() => setSelectedLogTunnelId(undefined)}
-            />
-          )}
+          {tab === 'logs' && <Logs tunnels={[]} />}
           {tab === 'settings' && <Settings session={session} onLogout={logout} />}
         </main>
       </div>

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { RdpCanvas } from '../components/RdpCanvas';
-import { TunnelWithState } from '../hooks/useTunnels';
+import { TunnelConfig } from '../../shared/types';
 import { shortServerName, formatIpcError } from '../lib/format';
 
 interface Props {
-  tunnel: TunnelWithState | null;
+  tunnel: (TunnelConfig & { runtime: { status: string } }) | null;
   onBack: () => void;
   onServerName?: (tunnelId: string, name: string) => void;
 }
@@ -456,9 +456,11 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
                 </svg>
               )}
             </button>
-            <button onClick={handleLaunchNativeClient} style={toolbarBtnStyle}>
-              Open Native Client
-            </button>
+            {!tunnel.id.startsWith('server-') && (
+              <button onClick={handleLaunchNativeClient} style={toolbarBtnStyle}>
+                Open Native Client
+              </button>
+            )}
           </>
         )}
       </div>

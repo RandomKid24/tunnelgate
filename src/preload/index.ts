@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { pqElectronPreload } from 'pq-befu/integrations/electron';
-import { IPC_CHANNELS, TunnelFormData, TunnelConfig, AppSettings, TunnelRuntimeState, LogEntry, UpdateInfo, HrmsSession, WifiStatusResult, DisplayInfo } from '../shared/types';
+import { IPC_CHANNELS, TunnelFormData, TunnelConfig, AppSettings, TunnelRuntimeState, LogEntry, UpdateInfo, HrmsSession, WifiStatusResult, DisplayInfo, HrmsServer } from '../shared/types';
 
 pqElectronPreload();
 
@@ -19,6 +19,14 @@ const api = {
   wifi: {
     getStatus: (bypassCache?: boolean): Promise<WifiStatusResult> =>
       ipcRenderer.invoke(IPC_CHANNELS.WIFI_GET_STATUS, bypassCache),
+  },
+
+  servers: {
+    list: (): Promise<HrmsServer[]> =>
+      ipcRenderer.invoke(IPC_CHANNELS.SERVERS_LIST),
+
+    setCredentials: (serverId: number, username: string, password: string): Promise<string> =>
+      ipcRenderer.invoke(IPC_CHANNELS.SERVERS_SET_CREDENTIALS, serverId, username, password),
   },
 
   tunnels: {

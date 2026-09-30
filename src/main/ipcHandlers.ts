@@ -1,13 +1,13 @@
 import { ipcMain, dialog, app, BrowserWindow, shell } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
-import { IPC_CHANNELS, TunnelConfig, TunnelFormData, AppSettings, LogEntry, RdpViewState, UpdateInfo, HrmsSession, WifiStatusResult } from '../shared/types';
+import { IPC_CHANNELS, TunnelConfig, TunnelFormData, AppSettings, LogEntry, RdpViewState, UpdateInfo, HrmsSession, WifiStatusResult, HrmsServer } from '../shared/types';
 import { getTunnels, setTunnels, getSettings, setSettings, getAuthSession, setAuthSession, StoredAuthSession } from './store';
 import { credentialStore } from './credentialStore';
 import { TunnelManager } from './tunnelManager';
 import { RdpViewManager } from './rdpViewManager';
 import { resolveCloudflared } from './cloudflaredResolver';
 import { getCombinedLogs, writeLog, getLogs } from './logger';
-import { hrmsLogin, hrmsValidateWifi } from './hrmsClient';
+import { hrmsLogin, hrmsValidateWifi, hrmsGetMyServers } from './hrmsClient';
 import { detectWifi } from './wifiDetector';
 
 const isWin = process.platform === 'win32';
@@ -67,6 +67,17 @@ interface WifiCacheEntry {
   error: string | null;
   ts: number;
 }
+
+interface ServerSession {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+}
+
+// Credentials live only in main-process memory (never persisted) so RdpView
+// can reconnect (resize, fullscreen) without re-prompting.
+const serverSessions = new Map<string, ServerSession>();
 
 let wifiCache: WifiCacheEntry | null = null;
 const WIFI_CACHE_TTL_MS = 45000;
@@ -163,6 +174,7 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
   });
 
   ipcMain.handle(IPC_CHANNELS.AUTH_LOGOUT, async () => {
+    serverSessions.clear();
     setAuthSession(null);
     wifiCache = null;
   });
@@ -269,6 +281,36 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
         platform: process.platform,
       };
     }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SERVERS_LIST, async (): Promise<HrmsServer[]> => {
+    const session = getAuthSession();
+    if (!session) throw new Error('Not logged in. Please sign in with your HRMS account first.');
+    let token: string;
+    try {
+      token = credentialStore.decrypt(session.encryptedToken);
+    } catch {
+      throw new Error('Your session has expired. Please log in again.');
+    }
+    return hrmsGetMyServers(session.baseUrl, token);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SERVERS_SET_CREDENTIALS, async (_event, serverId: number, username: string, password: string): Promise<string> => {
+    const session = getAuthSession();
+    if (!session) throw new Error('Not logged in. Please sign in with your HRMS account first.');
+    let token: string;
+    try {
+      token = credentialStore.decrypt(session.encryptedToken);
+    } catch {
+      throw new Error('Your session has expired. Please log in again.');
+    }
+    const server = (await hrmsGetMyServers(session.baseUrl, token)).find((s) => s.id === serverId);
+    if (!server) throw new Error('You no longer have access to this server.');
+    if (!username.trim()) throw new Error('Username is required.');
+
+    const sessionId = `server-${server.id}`;
+    serverSessions.set(sessionId, { host: server.host, port: server.port, username: username.trim(), password });
+    return sessionId;
   });
 
   ipcMain.handle(IPC_CHANNELS.TUNNELS_LIST, () => {
@@ -446,6 +488,12 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
     if (!rdpViewManager) throw new Error('RDP view manager not initialized');
     await checkWifiGate();
 
+    const srv = serverSessions.get(tunnelId);
+    if (srv) {
+      await rdpViewManager.connectView(tunnelId, srv.port, srv.username, srv.password, srv.host, width, height, srv.host);
+      return true;
+    }
+
     const tunnels = getTunnels();
     const config = tunnels.find((t) => t.id === tunnelId);
     if (!config) throw new Error('Tunnel not found');
@@ -475,6 +523,14 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
 
   ipcMain.handle(IPC_CHANNELS.RDP_VIEW_UPDATE_PASSWORD, async (_event, tunnelId: string, newPassword: string, width?: number, height?: number) => {
     if (!rdpViewManager) throw new Error('RDP view manager not initialized');
+
+    const srv = serverSessions.get(tunnelId);
+    if (srv) {
+      srv.password = newPassword;
+      rdpViewManager.disconnectView(tunnelId);
+      await rdpViewManager.connectView(tunnelId, srv.port, srv.username, newPassword, srv.host, width, height, srv.host);
+      return true;
+    }
 
     const tunnels = getTunnels();
     const config = tunnels.find((t) => t.id === tunnelId);

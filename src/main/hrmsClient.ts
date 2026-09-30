@@ -1,3 +1,5 @@
+import type { HrmsServer } from '../shared/types';
+
 export interface HrmsLoginResult {
   token: string;
   username: string;
@@ -86,4 +88,31 @@ export async function hrmsValidateWifi(
     matchedNetwork: data.matched_network ?? null,
     error: data.error ?? null,
   };
+}
+
+export async function hrmsGetMyServers(baseUrl: string, token: string): Promise<HrmsServer[]> {
+  const url = `${normalizeBaseUrl(baseUrl)}/api/rbac/my-servers/`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { Accept: 'application/json', Authorization: `Token ${token}` },
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      throw new Error('The HRMS server did not respond in time. Check your connection and try again.');
+    }
+    throw new Error('Could not reach the HRMS server. Check your connection.');
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const data = await res.json().catch(() => null);
+  if (res.status === 401) throw new Error('Your session has expired. Please log in again.');
+  if (!res.ok || !data?.success) {
+    throw new Error(data?.error || `Could not load servers (HTTP ${res.status}).`);
+  }
+  return (data.servers as HrmsServer[]).filter((s) => !s.protocol || s.protocol === 'rdp');
 }

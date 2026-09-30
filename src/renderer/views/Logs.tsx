@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 import { LogViewer } from '../components/LogViewer';
 import { LogEntry } from '../../shared/types';
 import { useLogs } from '../hooks/useLogs';
-import { TunnelWithState } from '../hooks/useTunnels';
 
 interface Props {
-  tunnels: TunnelWithState[];
+  tunnels: { id: string; name: string }[];
   initialTunnelId?: string;
   onClearFilter?: () => void;
 }

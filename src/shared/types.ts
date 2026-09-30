@@ -70,6 +70,8 @@ export const IPC_CHANNELS = {
   TUNNEL_STATUS_CHANGE: 'tunnel:status-change',
   TUNNEL_LOG: 'tunnel:log',
   TUNNELS_EXPORT_LOGS: 'tunnels:export-logs',
+  SERVERS_LIST: 'servers:list',
+  SERVERS_SET_CREDENTIALS: 'servers:set-credentials',
   SETTINGS_GET: 'settings:get',
   SETTINGS_SET: 'settings:set',
   APP_GET_VERSION: 'app:get-version',
@@ -126,5 +128,15 @@ export interface UpdateInfo {
   latestVersion: string;
   url: string;
   hasUpdate: boolean;
+}
+
+export interface HrmsServer {
+  id: number;
+  name: string;
+  host: string;
+  port: number;
+  address: string;
+  protocol: string;
+  description?: string;
 }
 

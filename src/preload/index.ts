@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { pqElectronPreload } from 'pq-befu/integrations/electron';
-import { IPC_CHANNELS, TunnelFormData, TunnelConfig, AppSettings, TunnelRuntimeState, LogEntry, UpdateInfo, HrmsSession, WifiStatusResult, DisplayInfo, HrmsServer } from '../shared/types';
+import { IPC_CHANNELS, TunnelFormData, TunnelConfig, AppSettings, TunnelRuntimeState, LogEntry, UpdateInfo, HrmsSession, WifiStatusResult, DisplayInfo, HrmsServerList } from '../shared/types';
 
 pqElectronPreload();
 
@@ -22,7 +22,7 @@ const api = {
   },
 
   servers: {
-    list: (): Promise<HrmsServer[]> =>
+    list: (): Promise<HrmsServerList> =>
       ipcRenderer.invoke(IPC_CHANNELS.SERVERS_LIST),
 
     setCredentials: (serverId: number, username: string, password: string): Promise<string> =>

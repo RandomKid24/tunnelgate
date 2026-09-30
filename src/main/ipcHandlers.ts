@@ -1,6 +1,6 @@
 import { ipcMain, dialog, app, BrowserWindow, shell } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
-import { IPC_CHANNELS, TunnelConfig, TunnelFormData, AppSettings, LogEntry, RdpViewState, UpdateInfo, HrmsSession, WifiStatusResult, HrmsServer } from '../shared/types';
+import { IPC_CHANNELS, TunnelConfig, TunnelFormData, AppSettings, LogEntry, RdpViewState, UpdateInfo, HrmsSession, WifiStatusResult, HrmsServerList } from '../shared/types';
 import { getTunnels, setTunnels, getSettings, setSettings, getAuthSession, setAuthSession, StoredAuthSession } from './store';
 import { credentialStore } from './credentialStore';
 import { TunnelManager } from './tunnelManager';
@@ -283,7 +283,7 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS.SERVERS_LIST, async (): Promise<HrmsServer[]> => {
+  ipcMain.handle(IPC_CHANNELS.SERVERS_LIST, async (): Promise<HrmsServerList> => {
     const session = getAuthSession();
     if (!session) throw new Error('Not logged in. Please sign in with your HRMS account first.');
     let token: string;
@@ -304,7 +304,7 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
     } catch {
       throw new Error('Your session has expired. Please log in again.');
     }
-    const server = (await hrmsGetMyServers(session.baseUrl, token)).find((s) => s.id === serverId);
+    const server = (await hrmsGetMyServers(session.baseUrl, token)).servers.find((s) => s.id === serverId);
     if (!server) throw new Error('You no longer have access to this server.');
     if (!username.trim()) throw new Error('Username is required.');
 

@@ -130,6 +130,11 @@ export interface UpdateInfo {
   hasUpdate: boolean;
 }
 
+export interface HrmsServerList {
+  servers: HrmsServer[];
+  unrestricted: boolean;
+}
+
 export interface HrmsServer {
   id: number;
   name: string;

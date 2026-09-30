@@ -170,6 +170,7 @@ function CredentialsModal({
 
 export function Servers({ onConnect, onAuthExpired }: Props) {
   const [servers, setServers] = useState<HrmsServer[]>([]);
+  const [unrestricted, setUnrestricted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<HrmsServer | null>(null);
@@ -178,7 +179,9 @@ export function Servers({ onConnect, onAuthExpired }: Props) {
     setLoading(true);
     setError(null);
     try {
-      setServers(await window.cloudflareRdp.servers.list());
+      const result = await window.cloudflareRdp.servers.list();
+      setServers(result.servers);
+      setUnrestricted(result.unrestricted);
     } catch (err: any) {
       const message = formatIpcError(err);
       setError(message);
@@ -213,6 +216,12 @@ export function Servers({ onConnect, onAuthExpired }: Props) {
           Refresh
         </button>
       </div>
+
+      {unrestricted && servers.length > 0 && (
+        <div style={{ marginBottom: 16, fontSize: 12, color: 'var(--text-secondary)' }}>
+          Unrestricted access: showing every active server.
+        </div>
+      )}
 
       {error && (
         <div style={{ padding: 12, marginBottom: 16, fontSize: 13, borderRadius: 'var(--radius-xs)', border: '1px solid rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.1)' }}>

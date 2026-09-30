@@ -28,13 +28,14 @@ not attached to any default role, so superuser-only until assigned):
 | `server.view` | 2 | See the server list; call the "any user" API |
 | `server.manage` | 3 | Add, edit, activate/deactivate, delete servers |
 | `server.assign_access` | 3 | Choose which employees can access each server |
+| `server.access_all` | 4 | **Unrestricted:** the API returns every active server for this user, without individual access grants |
 
 **Server address** accepts `rdp-128.encryptedbar.com`, `192.168.1.102:3389`,
 or `[::1]:3389`. No `http://`, paths or spaces. If no port is given, the
 protocol default is used (RDP 3389, SSH 22, VNC 5900). `host + port` must be
 unique. Hostnames are stored lower-case.
 
-**Access is per employee** (not per department/role). Deactivating a server
+**Access is per employee** (not per department/role) — except for **superadmins and anyone holding `server.access_all`**, who are unrestricted and get every active server from the API (no grants needed, no employee profile needed). Deactivating a server
 hides it from the API without deleting its access list. Deleting a server
 removes all its access rows.
 
@@ -54,7 +55,7 @@ Get one via `POST /api/rbac/login/` with `{"username": "...", "password": "..."}
 
 ## 3. Endpoints (base `/api/rbac/`)
 
-Both return **active** servers only.
+Both return **active** servers only. The response includes `unrestricted: true` when the user is a superadmin or holds `server.access_all` (they see all active servers).
 
 ### `GET /api/rbac/my-servers/`
 
@@ -69,6 +70,7 @@ curl http://<host>/api/rbac/my-servers/ -H "Authorization: Token <token>"
 {
   "success": true,
   "username": "jane",
+  "unrestricted": false,
   "count": 1,
   "servers": [
     {

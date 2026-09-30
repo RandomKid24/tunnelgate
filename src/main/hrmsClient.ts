@@ -1,4 +1,4 @@
-import type { HrmsServer } from '../shared/types';
+import type { HrmsServer, HrmsServerList } from '../shared/types';
 
 export interface HrmsLoginResult {
   token: string;
@@ -90,7 +90,7 @@ export async function hrmsValidateWifi(
   };
 }
 
-export async function hrmsGetMyServers(baseUrl: string, token: string): Promise<HrmsServer[]> {
+export async function hrmsGetMyServers(baseUrl: string, token: string): Promise<HrmsServerList> {
   const url = `${normalizeBaseUrl(baseUrl)}/api/rbac/my-servers/`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10000);
@@ -114,5 +114,8 @@ export async function hrmsGetMyServers(baseUrl: string, token: string): Promise<
   if (!res.ok || !data?.success) {
     throw new Error(data?.error || `Could not load servers (HTTP ${res.status}).`);
   }
-  return (data.servers as HrmsServer[]).filter((s) => !s.protocol || s.protocol === 'rdp');
+  return {
+    servers: (data.servers as HrmsServer[]).filter((s) => !s.protocol || s.protocol === 'rdp'),
+    unrestricted: !!data.unrestricted,
+  };
 }

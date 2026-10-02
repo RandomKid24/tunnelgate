@@ -69,10 +69,14 @@ interface WifiCacheEntry {
 }
 
 interface ServerSession {
+  name: string;
   host: string;
   port: number;
   username: string;
   password: string;
+  // HRMS servers sit behind Cloudflare, which does not pass raw RDP on 3389;
+  // they must go through a local cloudflared tunnel on a free port.
+  viaTunnel: boolean;
 }
 
 // Credentials live only in main-process memory (never persisted) so RdpView
@@ -199,6 +203,41 @@ async function checkWifiGate(): Promise<void> {
   }
 }
 
+// Start (or reuse) a cloudflared tunnel for a server-list entry and return the
+// free local port it listens on. Direct (superuser-added) servers skip this.
+async function resolveServerTarget(
+  tunnelManager: TunnelManager,
+  sessionId: string,
+  srv: ServerSession,
+): Promise<{ host: string; port: number }> {
+  if (!srv.viaTunnel) return { host: srv.host, port: srv.port };
+
+  const config: TunnelConfig = {
+    id: sessionId,
+    name: srv.name,
+    hostname: srv.host,
+    port: srv.port,
+    username: srv.username,
+    encryptedPassword: '',
+    rememberAfterSession: false,
+    createdAt: new Date().toISOString(),
+  };
+  await tunnelManager.connect(config, srv.password);
+
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
+    const state = tunnelManager.getRuntimeState(sessionId);
+    if (state?.status === 'connected' && state.localPort) {
+      return { host: '127.0.0.1', port: state.localPort };
+    }
+    if (!state || state.status === 'error') {
+      throw new Error(state?.lastError || 'Could not start the secure tunnel to this server.');
+    }
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  throw new Error('Timed out starting the secure tunnel to this server.');
+}
+
 export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager?: RdpViewManager): void {
   ipcMain.handle(IPC_CHANNELS.AUTH_LOGIN, async (_event, baseUrl: string, username: string, password: string): Promise<HrmsSession> => {
     if (!credentialStore.isEncryptionAvailable()) {
@@ -221,6 +260,9 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
   });
 
   ipcMain.handle(IPC_CHANNELS.AUTH_LOGOUT, async () => {
+    for (const [id, srv] of serverSessions) {
+      if (srv.viaTunnel) await tunnelManager.disconnect(id).catch(() => {});
+    }
     serverSessions.clear();
     setAuthSession(null);
     wifiCache = null;
@@ -362,7 +404,14 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
     if (!username.trim()) throw new Error('Username is required.');
 
     const sessionId = `server-${server.id}`;
-    serverSessions.set(sessionId, { host: server.host, port: server.port, username: username.trim(), password });
+    serverSessions.set(sessionId, {
+      name: server.name,
+      host: server.host,
+      port: server.port,
+      username: username.trim(),
+      password,
+      viaTunnel: server.source === 'hrms',
+    });
     return sessionId;
   });
 
@@ -543,7 +592,8 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
 
     const srv = serverSessions.get(tunnelId);
     if (srv) {
-      await rdpViewManager.connectView(tunnelId, srv.port, srv.username, srv.password, srv.host, width, height, srv.host);
+      const target = await resolveServerTarget(tunnelManager, tunnelId, srv);
+      await rdpViewManager.connectView(tunnelId, target.port, srv.username, srv.password, srv.host, width, height, target.host);
       return true;
     }
 
@@ -581,7 +631,8 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
     if (srv) {
       srv.password = newPassword;
       rdpViewManager.disconnectView(tunnelId);
-      await rdpViewManager.connectView(tunnelId, srv.port, srv.username, newPassword, srv.host, width, height, srv.host);
+      const target = await resolveServerTarget(tunnelManager, tunnelId, srv);
+      await rdpViewManager.connectView(tunnelId, target.port, srv.username, newPassword, srv.host, width, height, target.host);
       return true;
     }
 

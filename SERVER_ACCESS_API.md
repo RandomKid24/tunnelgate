@@ -30,10 +30,9 @@ not attached to any default role, so superuser-only until assigned):
 | `server.assign_access` | 3 | Choose which employees can access each server |
 | `server.access_all` | 4 | **Unrestricted:** the API returns every active server for this user, without individual access grants |
 
-**Server address** accepts `rdp-128.encryptedbar.com`, `192.168.1.102:3389`,
-or `[::1]:3389`. No `http://`, paths or spaces. If no port is given, the
-protocol default is used (RDP 3389, SSH 22, VNC 5900). `host + port` must be
-unique. Hostnames are stored lower-case.
+**Server address** is a hostname or IP only (`rdp-128.encryptedbar.com`,
+`192.168.1.102`). No port, `http://`, paths or spaces: TunnelGate chooses the
+port. The host must be unique. Hostnames are stored lower-case.
 
 **Access is per employee** (not per department/role) — except for **superadmins and anyone holding `server.access_all`**, who are unrestricted and get every active server from the API (no grants needed, no employee profile needed). Deactivating a server
 hides it from the API without deleting its access list. Deleting a server
@@ -77,8 +76,7 @@ curl http://<host>/api/rbac/my-servers/ -H "Authorization: Token <token>"
       "id": 1,
       "name": "Accounts RDP",
       "host": "rdp-128.encryptedbar.com",
-      "port": 3389,
-      "address": "rdp-128.encryptedbar.com:3389",
+      "address": "rdp-128.encryptedbar.com",
       "protocol": "rdp",
       "description": ""
     }
@@ -107,7 +105,7 @@ curl "http://<host>/api/rbac/servers/?username=jane" -H "Authorization: Token <t
 
 ## 4. Notes
 
-- `address` is ready to use: IPv6 hosts are bracketed (`[::1]:3389`).
+- `address` is the host only (same as `host`); there is no port field.
 - There is no write API — servers and access are managed in the HRMS UI.
 - Reverse lookup ("which users can access server X") is only in the UI
   (`/servers/<id>/access/`); add an endpoint if TunnelGate needs it.

@@ -101,6 +101,8 @@ function requireSuperuser(what = 'a tunnel\'s configuration'): void {
 
 const HOST_REGEX = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*|\[[0-9a-fA-F:.]+\]|[0-9a-fA-F:]*:[0-9a-fA-F:.]*)$/;
 
+const DEFAULT_RDP_PORT = 3389;
+
 function formatAddress(host: string, port: number): string {
   return host.includes(':') && !host.startsWith('[') ? `[${host}]:${port}` : `${host}:${port}`;
 }
@@ -127,15 +129,18 @@ async function loadServerList(): Promise<ServerList> {
   }
   const hrms = await hrmsGetMyServers(session.baseUrl, token);
   writeLog('system', 'Servers', 'info', `HRMS returned ${hrms.servers.length} RDP server(s), unrestricted=${hrms.unrestricted}`);
-  const fromHrms: ServerEntry[] = hrms.servers.map((s) => ({
-    id: `hrms-${s.id}`,
-    name: s.name,
-    host: s.host,
-    port: s.port,
-    address: s.address,
-    description: s.description || undefined,
-    source: 'hrms',
-  }));
+  const fromHrms: ServerEntry[] = hrms.servers.map((s) => {
+    const port = s.port || DEFAULT_RDP_PORT;
+    return {
+      id: `hrms-${s.id}`,
+      name: s.name,
+      host: s.host,
+      port,
+      address: formatAddress(s.host, port),
+      description: s.description || undefined,
+      source: 'hrms',
+    };
+  });
   // Direct servers are a superuser-only feature; never expose them to others.
   const local = session.isSuperuser ? getLocalServers() : [];
   return { servers: [...fromHrms, ...local], unrestricted: hrms.unrestricted };

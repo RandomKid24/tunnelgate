@@ -160,8 +160,9 @@ export interface HrmsServer {
   id: number;
   name: string;
   host: string;
-  port: number;
-  address: string;
+  // The HRMS API no longer sends a port: TunnelGate picks it (RDP default 3389).
+  port?: number;
+  address?: string;
   protocol: string;
   description?: string;
 }

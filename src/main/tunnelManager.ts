@@ -10,15 +10,15 @@ import { resolveCloudflared } from './cloudflaredResolver';
 const isWin = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
 
-function findFreePort(preferred: number): Promise<number> {
-  return new Promise((resolve) => {
+// Ask the OS for any free loopback port (port 0) so the tunnel never collides
+// with a local RDP listener on 3389 or another running tunnel.
+function findFreePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
     const server = createServer();
-    server.listen(preferred, '127.0.0.1', () => {
+    server.on('error', reject);
+    server.listen(0, '127.0.0.1', () => {
       const port = (server.address() as any).port;
       server.close(() => resolve(port));
-    });
-    server.on('error', () => {
-      resolve(findFreePort(preferred + 1));
     });
   });
 }
@@ -107,13 +107,9 @@ export class TunnelManager {
 
   private async startProcess(tunnel: ManagedTunnel): Promise<void> {
     const config = tunnel.config;
-    const preferred = config.port || 3389;
-    const port = await findFreePort(preferred);
-    if (port !== preferred) {
-      writeLog(config.id, config.name, 'warn', `Port ${preferred} was in use, falling back to ${port}`);
-    }
+    const port = await findFreePort();
     tunnel.state.localPort = port;
-    writeLog(config.id, config.name, 'info', `Selected local port: ${port}`);
+    writeLog(config.id, config.name, 'info', `Selected free local port automatically: ${port}`);
 
     const cloudflaredPath = await this.findCloudflared();
     writeLog(config.id, config.name, 'debug', `Resolved cloudflared path: ${cloudflaredPath ?? '(null)'}`);

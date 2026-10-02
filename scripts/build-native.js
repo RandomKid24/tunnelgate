@@ -437,6 +437,51 @@ if (isMac) {
     }
     console.log('  Ad-hoc signed all dylibs');
   }
+
+  // OpenSSL 3 only offers RC4 (needed by NTLM sealing during NLA) through the
+  // legacy provider. Without it winpr_RC4_Update dereferences a NULL cipher and
+  // the app segfaults on connect. Bundle legacy.dylib next to the bundled
+  // libcrypto and point it at that copy so it works without Homebrew installed.
+  const bundledCrypto = path.join(addonOutDir, 'libcrypto.3.dylib');
+  if (fs.existsSync(bundledCrypto)) {
+    const legacySrc = [
+      '/opt/homebrew/opt/openssl@3/lib/ossl-modules/legacy.dylib',
+      '/usr/local/opt/openssl@3/lib/ossl-modules/legacy.dylib',
+    ].find((c) => fs.existsSync(c));
+    if (!legacySrc) {
+      console.error('  ERROR: OpenSSL legacy.dylib not found (brew install openssl@3); RDP login would crash on macOS');
+      process.exit(1);
+    }
+    const osslDir = path.join(addonOutDir, 'ossl-modules');
+    fs.mkdirSync(osslDir, { recursive: true });
+    const legacyDest = path.join(osslDir, 'legacy.dylib');
+    fs.copyFileSync(legacySrc, legacyDest);
+    fs.chmodSync(legacyDest, 0o755);
+    const otool = spawnSync('otool', ['-L', legacyDest], { encoding: 'utf8' });
+    for (const line of (otool.stdout || '').split('\n')) {
+      const m = line.match(/^\t\s*(\S*libcrypto\S*\.dylib)\s/);
+      if (m) spawnSync('install_name_tool', ['-change', m[1], '@loader_path/../libcrypto.3.dylib', legacyDest], { stdio: 'ignore' });
+    }
+    spawnSync('codesign', ['--force', '--sign', '-', legacyDest], { stdio: 'ignore' });
+    fs.writeFileSync(path.join(addonOutDir, 'openssl.cnf'), [
+      'openssl_conf = openssl_init',
+      '',
+      '[openssl_init]',
+      'providers = provider_sect',
+      '',
+      '[provider_sect]',
+      'default = default_sect',
+      'legacy = legacy_sect',
+      '',
+      '[default_sect]',
+      'activate = 1',
+      '',
+      '[legacy_sect]',
+      'activate = 1',
+      '',
+    ].join('\n'), 'utf-8');
+    console.log('  Bundled OpenSSL legacy provider (RC4) + openssl.cnf');
+  }
 }
 
 // Linux: copy FreeRDP shared libraries alongside the addon, set RPATH to $ORIGIN

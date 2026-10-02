@@ -2,6 +2,23 @@ import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
 
+// macOS: OpenSSL 3 only provides RC4 (used by NTLM during NLA) via the legacy
+// provider. No relaunch needed — the addon hasn't initialised libcrypto yet.
+function initMacOpenSSLEnv() {
+  try {
+    if (process.platform !== 'darwin') return;
+    const addonDir = app.isPackaged
+      ? path.join(process.resourcesPath, 'rdp-addon')
+      : path.join(__dirname, '..', '..', 'native', 'rdp-addon', 'build', 'Release');
+    const modules = path.join(addonDir, 'ossl-modules');
+    const conf = path.join(addonDir, 'openssl.cnf');
+    if (fs.existsSync(path.join(modules, 'legacy.dylib')) && fs.existsSync(conf)) {
+      process.env.OPENSSL_MODULES = modules;
+      process.env.OPENSSL_CONF = conf;
+    }
+  } catch {}
+}
+
 function initOpenSSLEnv() {
   try {
     if (process.platform !== 'win32') return;
@@ -78,3 +95,4 @@ function initOpenSSLEnv() {
 }
 
 initOpenSSLEnv();
+initMacOpenSSLEnv();

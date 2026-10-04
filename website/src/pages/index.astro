@@ -102,6 +102,7 @@ const faqs = [
     <div class="wrap">
       <div class="hero-grid">
         <div class="hero-text">
+          <a class="forged-pill" href="#footer-credit"><img src="/logo.svg" alt="" />Forged by beforth</a>
           <h1>One-click RDP<br/>through <em>Cloudflare Zero Trust</em></h1>
           <p>No terminals. No config files. Just add your server, click connect, and your remote desktop appears.</p>
           <div class="hero-actions">
@@ -125,20 +126,21 @@ const faqs = [
             <a href={`${REPO}/releases`} target="_blank" rel="noopener">all versions ↗</a>
           </div>
         </div>
-        <div class="hero-terminal">
-          <div class="hero-terminal-bar">
-            <div class="hero-terminal-dot"></div>
-            <div class="hero-terminal-dot"></div>
-            <div class="hero-terminal-dot"></div>
-            <span>TunnelGate</span>
+        <div class="app-mock hero-mock" aria-hidden="true">
+          <div class="am-bar"><span class="am-logo"><img src="/logo.svg" alt="" /></span><span>TunnelGate</span><span class="am-user">Tunnels</span></div>
+          <div class="am-list">
+            <div class="am-card"><span class="am-dot"></span><span class="am-tx"><b>Design PC</b><i>design.acme.com</i></span><span class="am-acts"><span class="am-btn">Connect</span></span></div>
+            <div class="am-card am-live">
+              <span class="am-dot am-d1"></span><span class="am-dot am-d2"></span><span class="am-dot am-d3"></span>
+              <span class="am-tx"><b>Accounts PC</b><i>office-pc.acme.com<em class="am-time"> &middot; 12s</em></i></span>
+              <span class="am-acts">
+                <span class="am-btn am-a1">Connect</span>
+                <span class="am-btn am-wait am-a2">Connecting...</span>
+                <span class="am-a3"><span class="am-btn am-dis">Disconnect</span><span class="am-btn am-view">View Screen</span></span>
+              </span>
+            </div>
+            <div class="am-card"><span class="am-dot"></span><span class="am-tx"><b>Build server</b><i>build.acme.com</i></span><span class="am-acts"><span class="am-btn">Connect</span></span></div>
           </div>
-<pre><span class="term-line"><span class="prompt">$</span> <span class="cmd">tunnelgate</span></span>
-<span class="term-line"><span class="dim">Starting Cloudflare tunnel...</span></span>
-<span class="term-line"><span class="ok">✓</span> <span class="dim">Tunnel ready</span></span>
-<span class="term-line"><span class="ok">✓</span> <span class="dim">Connecting to</span> <span class="cmd">office-pc.acme.com</span></span>
-<span class="term-line"><span class="ok">✓</span> <span class="dim">RDP session active</span> <span class="ok">(1920×1080)</span></span>
-<span class="term-line"><span class="ok">✓</span> <span class="dim">Clipboard sync ready</span></span>
-<span class="term-line"><span class="dim">Click</span> <span class="cmd">← Back</span> <span class="dim">to disconnect</span> <span class="term-cursor"></span></span></pre>
         </div>
       </div>
     </div>
@@ -375,20 +377,30 @@ const faqs = [
     <div class="wrap">
       <div class="how-header reveal">
         <div class="section-eyebrow">See it in action</div>
-        <h2 class="section-heading">Dark, focused, no distractions</h2>
+        <h2 class="section-heading">One list. One click. Your desktop.</h2>
       </div>
       <div class="ss-grid">
-        <div class="ss-card reveal">
-          <div class="ss-placeholder">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-            <span>screenshot: dashboard</span>
+        <div class="reveal">
+          <div class="app-mock">
+            <div class="am-bar"><span class="am-logo"><img src="/logo.svg" alt="" /></span><span>TunnelGate</span><span class="am-user">Tunnels</span></div>
+            <div class="am-list">
+              <div class="am-card am-on"><span class="am-dot am-dot-on"></span><span class="am-tx"><b>Accounts PC</b><i>office-pc.acme.com<em class="am-time"> &middot; 3m 41s</em></i></span><span class="am-acts am-static"><span class="am-btn am-dis">Disconnect</span><span class="am-btn am-view">View Screen</span></span></div>
+              <div class="am-card"><span class="am-dot"></span><span class="am-tx"><b>Design PC</b><i>design.acme.com</i></span><span class="am-acts am-static"><span class="am-btn">Connect</span></span></div>
+              <div class="am-card"><span class="am-dot"></span><span class="am-tx"><b>Build server</b><i>build.acme.com</i></span><span class="am-acts am-static"><span class="am-btn">Connect</span></span></div>
+            </div>
           </div>
+          <p class="ss-cap">Your tunnels in one list. Connect, disconnect, or open the screen.</p>
         </div>
-        <div class="ss-card reveal reveal-delay-1">
-          <div class="ss-placeholder">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>
-            <span>screenshot: fullscreen rdp</span>
+        <div class="reveal reveal-delay-1">
+          <div class="rdp-mock">
+            <div class="rm-tb"><span class="rm-back">&larr; Back</span><span>Accounts PC</span><span class="rm-sp"></span><span class="rm-live">Connected</span></div>
+            <div class="rm-dt">
+              <div class="rm-win rm-xl"><div class="rm-h">Payroll_Q3.xlsx</div><div class="rm-g"><span class="hd">Team</span><span class="hd">Heads</span><span class="hd">Net</span><span>Design</span><span>12</span><span>41,980</span><span>Support</span><span>20</span><span>53,110</span><span>Finance</span><span>6</span><span>25,730</span></div></div>
+              <div class="rm-win rm-nt"><div class="rm-h">notes.txt</div><p>Month-end close</p></div>
+              <div class="rm-task"></div>
+            </div>
           </div>
+          <p class="ss-cap">Your remote desktop, fullscreen, inside the app.</p>
         </div>
       </div>
     </div>
@@ -431,6 +443,7 @@ const faqs = [
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         <span id="dl-cta-label">Download for Windows</span>
       </a>
+      <p class="cta-forged">Forged by beforth</p>
       <div class="cta-alt">
         <a href={downloads.mac}>macOS</a> ·
         <a href={downloads.linux}>Linux</a> ·
@@ -440,12 +453,12 @@ const faqs = [
   </div>
 
   <!-- FOOTER -->
-  <footer>
+  <footer id="footer-credit">
     <div class="wrap">
       <div class="footer-inner">
         <div class="footer-left">
           <img src="/logo.svg" alt="TunnelGate" />
-          TunnelGate &middot; forged by beforth
+          <span><strong>TunnelGate</strong> &middot; forged by <strong>beforth</strong></span>
         </div>
         <ul class="footer-links">
           <li><a href="https://github.com/RandomKid24/cloudflareRDB-gui" target="_blank">GitHub</a></li>

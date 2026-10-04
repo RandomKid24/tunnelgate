@@ -15,10 +15,13 @@ const { title, description = 'One-click RDP through Cloudflare Zero Trust Tunnel
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <link rel="alternate icon" type="image/png" href="/logo.png" />
     <meta name="theme-color" content="#F2F7F9" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap" />
     <link rel="stylesheet" href="/styles/global.css" />
   </head>
   <body>
-    <nav>
+    <nav id="top-nav">
       <div class="nav-inner">
         <a href="/" class="nav-brand">
           <img src="/logo.svg" alt="TunnelGate" />
@@ -35,6 +38,9 @@ const { title, description = 'One-click RDP through Cloudflare Zero Trust Tunnel
     </nav>
     <slot />
     <script>
+      const nav = document.getElementById('top-nav');
+      const onScroll = () => nav?.classList.toggle('scrolled', window.scrollY > 8);
+      onScroll(); window.addEventListener('scroll', onScroll, { passive: true });
       const observer = new IntersectionObserver((entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {

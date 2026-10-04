@@ -19,9 +19,9 @@
   --signal: #1C75BC;
   --wave: #75BAE6;
   --signal-deep: #165B93;
-  --mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
-  --display: 'Bricolage Grotesque', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --mono: 'Geist Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+  --display: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   color-scheme: light;
 }
 
@@ -130,10 +130,10 @@ section { padding: 96px 0; }
 }
 .hero-text h1 {
   font-family: var(--display);
-  font-size: 44px;
+  font-size: 42px;
   font-weight: 800;
-  line-height: 1.12;
-  letter-spacing: -0.025em;
+  line-height: 1.14;
+  letter-spacing: -0.035em;
   margin-bottom: 18px;
 }
 .hero-text h1 em {

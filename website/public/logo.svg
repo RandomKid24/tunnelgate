@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="TunnelGate">
+  <path d="M404 226V112a48 48 0 0 0-48-48H108a48 48 0 0 0-48 48v178a48 48 0 0 0 48 48h202" stroke="#231F20" stroke-width="30"/>
+  <path d="M256 352v86M176 438h160" stroke="#231F20" stroke-width="30"/>
+  <path d="M132 140l68 62-68 62M240 264h72" stroke="#1C75BC" stroke-width="30"/>
+  <path d="M310 338h32" stroke="#1C75BC" stroke-width="30"/>
+  <circle cx="392" cy="338" r="50" stroke="#1C75BC" stroke-width="30"/>
+</svg>

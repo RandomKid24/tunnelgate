@@ -20,7 +20,7 @@
   --wave: #75BAE6;
   --signal-deep: #165B93;
   --mono: 'Geist Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
-  --display: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --display: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   color-scheme: light;
 }
@@ -130,10 +130,10 @@ section { padding: 96px 0; }
 }
 .hero-text h1 {
   font-family: var(--display);
-  font-size: 42px;
-  font-weight: 800;
-  line-height: 1.14;
-  letter-spacing: -0.035em;
+  font-size: 46px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
   margin-bottom: 18px;
 }
 .hero-text h1 em {
@@ -319,7 +319,7 @@ section { padding: 96px 0; }
 .callout-num {
   font-family: var(--display);
   font-size: 40px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--signal);
   letter-spacing: -0.03em;
   line-height: 1.1;
@@ -343,7 +343,7 @@ section { padding: 96px 0; }
 .section-heading {
   font-family: var(--display);
   font-size: 30px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
   margin-bottom: 12px;
   line-height: 1.15;
@@ -752,7 +752,7 @@ section { padding: 96px 0; }
 .cta-bottom h2 {
   font-family: var(--display);
   font-size: 32px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
   margin-bottom: 12px;
 }

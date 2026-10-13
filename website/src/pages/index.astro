@@ -1,17 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
 
-// Direct installer links. electron-builder emits these exact, version-less
-// names (see electron-builder.yml `artifactName`); GitHub's /releases/latest/
-// download/<name> URL always resolves to the newest published release.
-const REPO = 'https://github.com/RandomKid24/cloudflareRDB-gui';
-const DL = `${REPO}/releases/latest/download`;
-const downloads = {
-  win: `${DL}/TunnelGate-Setup-x64.exe`,
-  mac: `${DL}/TunnelGate-arm64.dmg`,
-  linux: `${DL}/TunnelGate-x64.AppImage`,
-};
-
 const features = [
   {
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
@@ -21,7 +10,7 @@ const features = [
   {
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
     title: 'Nothing to install',
-    desc: 'The Cloudflare tunnel client and the RDP engine ship inside TunnelGate. One installer, no dependencies, no PATH setup.',
+    desc: 'The secure tunnel and the RDP engine ship inside TunnelGate. One app, no dependencies, no PATH setup.',
   },
   {
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6"/><path d="M9 16h4"/></svg>`,
@@ -31,7 +20,7 @@ const features = [
   {
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
     title: 'Zero Trust routing',
-    desc: 'All traffic goes through Cloudflare Zero Trust. Your IT team controls who connects and from where.',
+    desc: 'Every connection goes through a Zero Trust tunnel. Your IT team controls who connects and from where.',
   },
   {
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>`,
@@ -58,11 +47,11 @@ const features = [
 const faqs = [
   {
     q: 'What does TunnelGate actually do?',
-    a: 'It drives the Cloudflare tunnel client and a built-in RDP viewer from one app. You add your server details once, click connect, and your remote desktop appears — no terminal commands.',
+    a: 'It combines a secure tunnel and a built-in RDP viewer in one app. You add your server details once, click connect, and your remote desktop appears — no terminal commands.',
   },
   {
-    q: 'Do I need cloudflared or an RDP client installed separately?',
-    a: 'No. Both are bundled inside TunnelGate — the Cloudflare tunnel client (cloudflared) and the FreeRDP 3 engine ship with the app and are kept up to date with it. You can still point Settings at your own cloudflared build if you need to.',
+    q: 'Do I need a tunnel client or RDP client installed separately?',
+    a: 'No. The tunnel client and the FreeRDP 3 engine ship inside the app and are updated with it.',
   },
   {
     q: 'Does copy and paste work?',
@@ -78,7 +67,7 @@ const faqs = [
   },
   {
     q: 'Which platforms are supported?',
-    a: 'Windows (x64), macOS (Apple Silicon), and Linux (x64). Downloads are available on the releases page.',
+    a: 'Windows (x64), macOS (Apple Silicon), and Linux (x64).',
   },
   {
     q: 'What happens if my connection drops?',
@@ -90,39 +79,23 @@ const faqs = [
   },
   {
     q: 'How do I get TunnelGate?',
-    a: 'Download the installer for your platform from the releases page and run it — nothing else to install. You need a Cloudflare Zero Trust account and a remote machine that allows RDP.',
+    a: 'Ask your IT team for the installer for your platform. You need Zero Trust access to be set up for you and a remote machine that allows RDP.',
   },
 ];
 ---
 
-<Layout title="TunnelGate — One-click RDP via Cloudflare Zero Trust">
+<Layout title="TunnelGate — One-click secure RDP">
 
   <!-- HERO -->
   <section class="hero">
     <div class="wrap">
       <div class="hero-grid">
         <div class="hero-text">
-          <h1>One-click RDP<br/>through <em>Cloudflare Zero Trust</em></h1>
+          <h1>One-click RDP<br/>through a <em>secure tunnel</em></h1>
           <p>No terminals. No config files. Just add your server, click connect, and your remote desktop appears.</p>
           <div class="hero-actions">
-            <a
-              id="dl-primary"
-              href={downloads.win}
-              data-win={downloads.win}
-              data-mac={downloads.mac}
-              data-linux={downloads.linux}
-              class="btn btn-blue"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              <span id="dl-primary-label">Download for Windows</span>
-            </a>
-            <a href="#setup" class="btn btn-ghost">Setup guide</a>
-          </div>
-          <div class="hero-platforms">
-            <a href={downloads.mac}>macOS</a>
-            <a href={downloads.win}>Windows</a>
-            <a href={downloads.linux}>Linux</a>
-            <a href={`${REPO}/releases`} target="_blank" rel="noopener">all versions ↗</a>
+            <a href="#setup" class="btn btn-blue">Setup guide</a>
+            <a href="#how-it-works" class="btn btn-ghost">How it works</a>
           </div>
         </div>
         <div class="hero-terminal">
@@ -133,7 +106,7 @@ const faqs = [
             <span>TunnelGate</span>
           </div>
 <pre><span class="term-line"><span class="prompt">$</span> <span class="cmd">tunnelgate</span></span>
-<span class="term-line"><span class="dim">Starting Cloudflare tunnel...</span></span>
+<span class="term-line"><span class="dim">Starting secure tunnel...</span></span>
 <span class="term-line"><span class="ok">✓</span> <span class="dim">Tunnel ready</span></span>
 <span class="term-line"><span class="ok">✓</span> <span class="dim">Connecting to</span> <span class="cmd">office-pc.acme.com</span></span>
 <span class="term-line"><span class="ok">✓</span> <span class="dim">RDP session active</span> <span class="ok">(1920×1080)</span></span>
@@ -180,7 +153,7 @@ const faqs = [
         <div class="step reveal reveal-delay-1">
           <div class="step-num">02</div>
           <h3>Click connect</h3>
-          <p>Cloudflare tunnel is created automatically. No command line needed.</p>
+          <p>The secure tunnel is created automatically. No command line needed.</p>
         </div>
         <div class="step reveal reveal-delay-2">
           <div class="step-num">03</div>
@@ -208,7 +181,7 @@ const faqs = [
             <ul class="prereq-list">
               <li>
                 <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-                <span><strong style="color:var(--ink)">A Cloudflare Zero Trust account.</strong> Sign up free at <a href="https://one.dash.cloudflare.com" target="_blank">one.dash.cloudflare.com</a>. You'll need to create a team name and enable Zero Trust.</span>
+                <span><strong style="color:var(--ink)">Zero Trust access.</strong> Your IT team sets this up and adds you to the access policy.</span>
               </li>
               <li>
                 <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
@@ -219,7 +192,7 @@ const faqs = [
                 <span><strong style="color:var(--ink)">Your Windows login credentials.</strong> The username and password you use to log into the remote machine.</span>
               </li>
             </ul>
-            <p class="prereq-note">That's it. <strong style="color:var(--ink)">cloudflared</strong> and the RDP engine are bundled inside TunnelGate — nothing else to install.</p>
+            <p class="prereq-note">That's it. The tunnel client and the RDP engine are bundled inside TunnelGate — nothing else to install.</p>
           </div>
         </div>
         <div class="reveal reveal-delay-1">
@@ -229,14 +202,8 @@ const faqs = [
             <div class="setup-step">
               <div class="setup-step-num">1</div>
               <div class="setup-step-content">
-                <h4>Download TunnelGate</h4>
-                <p>Grab the installer for your platform — each link always pulls the latest release:</p>
-                <ul class="dl-list">
-                  <li><strong>Windows</strong> — <a href={downloads.win}>TunnelGate-Setup-x64.exe</a>, then run it</li>
-                  <li><strong>macOS</strong> (Apple Silicon) — <a href={downloads.mac}>TunnelGate-arm64.dmg</a>, then drag to Applications</li>
-                  <li><strong>Linux</strong> — <a href={downloads.linux}>TunnelGate-x64.AppImage</a> (<code>chmod +x</code> and run), or the <code>.deb</code> from the <a href={`${REPO}/releases/latest`} target="_blank" rel="noopener">releases page</a></li>
-                </ul>
-                <p>The Cloudflare tunnel client is already inside — there's nothing else to install.</p>
+                <h4>Get TunnelGate</h4>
+                <p>Get the installer for your platform from your IT team. The tunnel client is already inside — there's nothing else to install.</p>
               </div>
             </div>
             <div class="setup-step">
@@ -257,7 +224,7 @@ const faqs = [
               <div class="setup-step-num">4</div>
               <div class="setup-step-content">
                 <h4>Connect</h4>
-                <p>Hit connect. TunnelGate creates a Cloudflare tunnel, authenticates, and opens your remote desktop — all in one click.</p>
+                <p>Hit connect. TunnelGate creates a secure tunnel, authenticates, and opens your remote desktop — all in one click.</p>
               </div>
             </div>
           </div>
@@ -273,7 +240,7 @@ const faqs = [
         <div class="reveal">
           <div class="section-eyebrow">Under the hood</div>
           <h2 class="section-heading">Your IT team stays in control</h2>
-          <p class="section-sub" style="margin-bottom:20px">Every connection goes through Cloudflare Zero Trust. Access is gated by HRMS login and optionally restricted to approved office WiFi networks. The tunnel encrypts traffic end-to-end — nothing touches the public internet.</p>
+          <p class="section-sub" style="margin-bottom:20px">Every connection goes through a Zero Trust tunnel. Access is gated by HRMS login and optionally restricted to approved office WiFi networks. The tunnel encrypts traffic end-to-end — nothing touches the public internet.</p>
           <p class="section-sub">Credentials never leave your machine. Passwords are encrypted with OS-level keychains and only sent to the remote server during RDP authentication.</p>
         </div>
         <div class="reveal reveal-delay-1">
@@ -303,7 +270,7 @@ const faqs = [
                 </div>
                 <div class="arch-component arch-tunnel">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg>
-                  cloudflared
+                  Tunnel client
                 </div>
               </div>
             </div>
@@ -320,7 +287,7 @@ const faqs = [
 
             <!-- Cloudflare box -->
             <div class="arch-box arch-cloud">
-              <div class="arch-label">Cloudflare Edge</div>
+              <div class="arch-label">Secure Edge</div>
               <div class="arch-component arch-zt">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 Zero Trust
@@ -370,30 +337,6 @@ const faqs = [
     </div>
   </section>
 
-  <!-- SCREENSHOTS -->
-  <section class="screenshots" id="screenshots">
-    <div class="wrap">
-      <div class="how-header reveal">
-        <div class="section-eyebrow">See it in action</div>
-        <h2 class="section-heading">Dark, focused, no distractions</h2>
-      </div>
-      <div class="ss-grid">
-        <div class="ss-card reveal">
-          <div class="ss-placeholder">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-            <span>screenshot: dashboard</span>
-          </div>
-        </div>
-        <div class="ss-card reveal reveal-delay-1">
-          <div class="ss-placeholder">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><polyline points="8 21 12 17 16 21"/></svg>
-            <span>screenshot: fullscreen rdp</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- FAQ -->
   <section id="faq">
     <div class="wrap">
@@ -419,23 +362,8 @@ const faqs = [
   <div class="cta-bottom">
     <div class="wrap reveal">
       <h2>Ready to connect?</h2>
-      <p>Works with your Cloudflare Zero Trust account.</p>
-      <a
-        id="dl-cta"
-        href={downloads.win}
-        data-win={downloads.win}
-        data-mac={downloads.mac}
-        data-linux={downloads.linux}
-        class="btn btn-blue"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        <span id="dl-cta-label">Download for Windows</span>
-      </a>
-      <div class="cta-alt">
-        <a href={downloads.mac}>macOS</a> ·
-        <a href={downloads.linux}>Linux</a> ·
-        <a href={`${REPO}/releases`} target="_blank" rel="noopener">all versions</a>
-      </div>
+      <p>Add your server and connect in one click.</p>
+      <a href="#setup" class="btn btn-blue">Setup guide</a>
     </div>
   </div>
 
@@ -450,31 +378,10 @@ const faqs = [
         <ul class="footer-links">
           <li><a href="https://github.com/RandomKid24/cloudflareRDB-gui" target="_blank">GitHub</a></li>
           <li><a href="https://github.com/RandomKid24/cloudflareRDB-gui/issues" target="_blank">Issues</a></li>
-          <li><a href="https://github.com/RandomKid24/cloudflareRDB-gui/releases" target="_blank">Releases</a></li>
-        </ul>
+                  </ul>
       </div>
     </div>
   </footer>
 
-  <script is:inline>
-    // Point the primary Download buttons at the visitor's OS. Falls back to the
-    // Windows link already in the href, so it works with JS disabled too.
-    (function () {
-      var ua = navigator.userAgent || '';
-      var p = (navigator.platform || '') + ' ' + ua;
-      var os = /Mac|iPhone|iPad|iPod/i.test(p) ? 'mac'
-             : /Linux|X11|Ubuntu|Fedora|CrOS/i.test(p) && !/Android/i.test(ua) ? 'linux'
-             : 'win';
-      var label = { win: 'Download for Windows', mac: 'Download for macOS', linux: 'Download for Linux' }[os];
-      ['dl-primary', 'dl-cta'].forEach(function (id) {
-        var el = document.getElementById(id);
-        if (!el) return;
-        var url = el.getAttribute('data-' + os);
-        if (url) el.setAttribute('href', url);
-        var span = document.getElementById(id + '-label');
-        if (span) span.textContent = label;
-      });
-    })();
-  </script>
 
 </Layout>

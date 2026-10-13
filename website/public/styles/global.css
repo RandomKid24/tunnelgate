@@ -148,3 +148,26 @@ footer { border-top: 1px solid var(--rule); padding: 28px 0; font-size: 14px; co
 
 /* Motion: hover colour changes only; navigation scroll is native. */
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+
+/* Doodles: hand-drawn line art, decorative (DESIGN.md §6). Ink lines, signal for the working part. */
+.doodle { display: block; width: 100%; height: auto; fill: none; stroke: var(--ink); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; filter: url(#sketch); }
+.doodle .f { fill: var(--bone); }
+.bone .doodle .f { fill: var(--paper); }
+.doodle .acc { stroke: var(--signal); }
+.doodle .accf { fill: var(--signal); stroke: var(--signal); }
+.surface-ink .doodle { stroke: var(--paper); }
+.surface-ink .doodle .f { fill: rgba(242, 247, 249, 0.1); }
+.surface-ink .doodle .acc { stroke: var(--wave); }
+.surface-ink .doodle .accf { fill: var(--wave); stroke: var(--wave); }
+.road { display: none; margin-top: 56px; }
+.small { max-width: 200px; margin-top: 40px; }
+.mid { max-width: 380px; margin-top: 40px; }
+.faq-wrap { display: grid; gap: 40px; }
+.cta-grid { display: grid; gap: 40px; align-items: center; }
+.side { display: none; }
+@media (min-width: 700px) { .road { display: block; } }
+@media (min-width: 1000px) {
+  .faq-wrap { grid-template-columns: 1fr 300px; gap: 80px; align-items: start; }
+  .cta-grid { grid-template-columns: 1fr 320px; }
+  .side { display: block; }
+}

@@ -1,0 +1,76 @@
+---
+// Hand-drawn-style line drawings. Each is drawn from the text of the section it sits in
+// (see DESIGN.md §6). Decorative only: aria-hidden, no text in the SVG that the page doesn't say.
+interface Props { name: 'road' | 'tunnel' | 'checklist' | 'faq' | 'click'; class?: string }
+const { name, class: cls = '' } = Astro.props;
+const views = { road: '0 0 640 160', tunnel: '0 0 400 240', checklist: '0 0 240 280', faq: '0 0 320 240', click: '0 0 360 240' };
+---
+<svg class={`doodle doodle-${name} ${cls}`} viewBox={views[name]} aria-hidden="true" focusable="false">
+  {name === 'road' && (
+    <>
+      <path d="M20 110 H620" />
+      <!-- 1 add server -->
+      <circle class="f" cx="80" cy="110" r="9" />
+      <rect class="f" x="58" y="30" width="44" height="18" /><rect class="f" x="58" y="52" width="44" height="18" />
+      <circle class="acc" cx="68" cy="39" r="2" /><circle class="acc" cx="68" cy="61" r="2" />
+      <path d="M80 72 V101" />
+      <!-- 2 click connect -->
+      <circle class="f" cx="240" cy="110" r="9" />
+      <path class="f" d="M228 26 L228 62 L237 54 L243 68 L250 65 L244 52 L256 52 Z" />
+      <path class="acc" d="M262 32 L272 26 M264 46 L276 46 M258 22 V12" />
+      <path d="M240 72 V101" />
+      <!-- 3 view desktop -->
+      <circle class="f" cx="400" cy="110" r="9" />
+      <rect class="f" x="374" y="28" width="52" height="34" /><path d="M392 72 H408 M400 62 V72" />
+      <path class="acc" d="M382 38 H408 M382 46 H398" />
+      <path d="M400 76 V101" />
+      <!-- 4 back, then flag -->
+      <circle class="f" cx="560" cy="110" r="9" />
+      <circle class="f" cx="560" cy="46" r="22" /><path class="acc" d="M570 46 H550 M558 38 L550 46 L558 54" />
+      <path d="M560 70 V101" />
+      <path d="M612 110 V62" /><path class="accf" d="M612 62 L634 70 L612 80 Z" />
+    </>
+  )}
+  {name === 'tunnel' && (
+    <>
+      <!-- laptop -->
+      <rect class="f" x="24" y="80" width="96" height="62" /><path d="M10 154 H134 L126 142 H18 Z" class="f" />
+      <path class="acc" d="M38 98 H78 M38 110 H64" />
+      <!-- the public internet the tunnel passes under -->
+      <rect class="f" x="176" y="30" width="48" height="180" />
+      <path d="M186 44 V196 M200 44 V196 M214 44 V196" opacity=".35" />
+      <!-- tunnel -->
+      <path class="acc" d="M122 100 C150 100 160 124 200 124 S250 100 278 100" />
+      <path class="acc" d="M122 134 C150 134 160 158 200 158 S250 134 278 134" />
+      <path class="acc" d="M122 100 V134 M278 100 V134" />
+      <!-- server with lock -->
+      <rect class="f" x="278" y="56" width="96" height="40" /><rect class="f" x="278" y="100" width="96" height="40" />
+      <circle class="acc" cx="294" cy="76" r="3" /><circle class="acc" cx="294" cy="120" r="3" />
+      <rect class="accf" x="324" y="164" width="34" height="26" /><path class="acc" d="M330 164 V154 A11 11 0 0 1 352 154 V164" />
+    </>
+  )}
+  {name === 'checklist' && (
+    <>
+      <rect class="f" x="30" y="30" width="180" height="230" /><rect class="f" x="85" y="14" width="70" height="28" />
+      <path class="acc" d="M56 90 L68 102 L90 76" /><path d="M106 88 H190 M106 100 H160" />
+      <path class="acc" d="M56 150 L68 162 L90 136" /><path d="M106 148 H190 M106 160 H170" />
+      <path class="acc" d="M56 210 L68 222 L90 196" /><path d="M106 208 H190 M106 220 H150" />
+    </>
+  )}
+  {name === 'faq' && (
+    <>
+      <path class="f" d="M24 24 H190 V114 H80 L46 144 V114 H24 Z" />
+      <path class="acc" d="M92 52 C92 36 122 36 122 54 C122 68 107 68 107 82 M107 98 V100" />
+      <path class="f" d="M130 128 H296 V210 H264 V236 L232 210 H130 Z" />
+      <path class="acc" d="M176 170 L196 188 L238 150" />
+    </>
+  )}
+  {name === 'click' && (
+    <>
+      <rect class="f" x="40" y="30" width="230" height="150" /><path d="M120 198 H190 M155 180 V198" />
+      <rect class="accf" x="90" y="84" width="130" height="44" />
+      <path class="f" d="M250 120 L250 176 L264 162 L274 186 L286 181 L276 158 L296 158 Z" />
+      <path class="acc" d="M300 112 L318 100 M306 140 L330 140 M262 96 L270 78" />
+    </>
+  )}
+</svg>

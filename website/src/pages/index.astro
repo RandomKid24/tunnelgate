@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import Doodle from '../components/Doodles.astro';
 
 const features = [
   {
@@ -123,6 +124,7 @@ const faqs = [
         <li class="step"><div class="step-num">03</div><h3 class="display-md">View your desktop</h3><p class="body-tight">Your remote desktop appears in the app with full keyboard, mouse and fullscreen.</p></li>
         <li class="step"><div class="step-num">04</div><h3 class="display-md">Click Back</h3><p class="body-tight">A clean disconnect tears down the session. Esc stays yours: it goes to the remote desktop.</p></li>
       </ol>
+      <Doodle name="road" class="road" />
     </div>
   </section>
 
@@ -138,6 +140,7 @@ const faqs = [
           <li><span>✓</span><p><strong>Your Windows login.</strong> The username and password you use on the remote machine.</p></li>
         </ul>
         <p class="note">That's it. The tunnel client and the RDP engine are bundled inside TunnelGate. <strong>Nothing else to install.</strong></p>
+        <Doodle name="checklist" class="small" />
       </div>
       <div>
         <p class="label">Setup</p>
@@ -160,6 +163,7 @@ const faqs = [
         <h2 class="display-lg" style="margin-bottom:24px">Your IT team stays in control</h2>
         <p class="body" style="margin-bottom:16px">Every connection goes through a Zero Trust tunnel. Access is gated by HRMS login and can be limited to approved office WiFi networks. Traffic is encrypted end to end.</p>
         <p class="body">Credentials never leave your machine. Passwords are encrypted with the OS keychain and sent only to the remote server during RDP authentication.</p>
+        <Doodle name="tunnel" class="mid" />
       </div>
       <div class="stack" role="img" aria-label="Your machine connects through a secure edge to your RDP server">
         <div class="stack-box">
@@ -206,6 +210,7 @@ const faqs = [
         <p class="label">FAQ</p>
         <h2 class="display-lg">Common questions</h2>
       </div>
+      <div class="faq-wrap">
       <div class="faq">
         {faqs.map((faq) => (
           <details>
@@ -214,15 +219,20 @@ const faqs = [
           </details>
         ))}
       </div>
+      <Doodle name="faq" class="side" />
+      </div>
     </div>
   </section>
 
   <!-- CTA -->
   <section class="cta surface-ink">
-    <div class="wrap">
+    <div class="wrap cta-grid">
+      <div>
       <h2 class="display-lg">Ready to connect?</h2>
       <p class="lead" style="color:rgba(242,247,249,.8)">Add your server and connect in one click.</p>
       <a href="#setup" class="btn btn-invert">Setup guide</a>
+      </div>
+      <Doodle name="click" class="side" />
     </div>
   </section>
 

@@ -49,7 +49,30 @@ Every page: a "Skip to content" link first, exactly one `<main id="main-content"
 
 Motion answers an action or it does not ship. Hover colour changes, native anchor scrolling, and the FAQ `<details>` toggle. No scroll reveals, parallax, marquees or entrance animations. `prefers-reduced-motion` turns off transitions and smooth scroll.
 
-## 6. Components
+## 6. Illustration (doodles)
+
+Hand-drawn-style line drawings, the one deliberate exception to "no decoration". Source: `src/components/Doodles.astro` (`<Doodle name="..." />`). The wobble filter `#sketch` is defined once in `Layout.astro`.
+
+Look: `ink` line work, 2.4px, round caps; `signal` only for the working or connected part; `bone` for flat fills (`paper` on bone sections); on dark panels lines are `paper` and the accent is `wave`. No gradients or shadows.
+
+Rules:
+1. Each drawing is drawn from the text of its own section. If another section could swap in the same drawing, it is the wrong drawing.
+2. Every drawing is unique. Do not reuse a subject or add a repeating motif.
+3. Facts only: nothing the page does not already say (no invented hosts, numbers or logos).
+4. Decorative: `aria-hidden="true"`, `focusable="false"`, no text inside the SVG.
+5. Wide drawings hide on small screens (`road` below 700px, `side` drawings below 1000px). Place them beside or below copy, never over it.
+
+| Section | Name | Subject |
+|---|---|---|
+| How it works | `road` | A road with four stops (server, click, desktop, back) and a flag |
+| Setup, what you need | `checklist` | A clipboard with three ticks, one per prerequisite |
+| Under the hood | `tunnel` | A laptop joined to a locked server by a tunnel that passes under a barrier |
+| FAQ | `faq` | A question bubble and an answer bubble with a tick |
+| Call to action | `click` | A monitor with a button and a cursor about to press it |
+
+To add one: write down what the section says, draw that, check this table for duplicates, add it to `Doodles.astro`, check desktop and phone widths, run the build, add a row above.
+
+## 7. Components
 
 | Class | Use |
 |---|---|
@@ -63,7 +86,7 @@ Motion answers an action or it does not ship. Hover colour changes, native ancho
 
 Buttons and links are sentence case, 15px, semibold.
 
-## 7. Honesty
+## 8. Honesty
 
 - Never invent facts: no user counts, version claims, benchmarks or customer names.
 - No "Cloudflare" branding in copy; say "secure tunnel" or "tunnel".
@@ -71,7 +94,7 @@ Buttons and links are sentence case, 15px, semibold.
 - No placeholder content (empty screenshot boxes) reaches a visitor; add a screenshot section only with a real one.
 - Features listed must exist in the app (see `docs/TUNNELGATE_COMPLETE.md`).
 
-## 8. Build
+## 9. Build
 
 ```sh
 cd website && npm run build   # astro build → dist/
@@ -79,13 +102,14 @@ cd website && npm run build   # astro build → dist/
 
 After deploying, check the live site: status code and that `/styles/global.css` loads.
 
-## 9. Do / don't
+## 10. Do / don't
 
 | Do | Don't |
 |---|---|
 | One accent colour | Multiple accents, tinted panels |
 | Flat surfaces, 1px rules | Shadows, glows, glass, gradients |
 | Left-aligned headings | Centred hero text |
+| A drawing that shows what its section says | A stock drawing reused elsewhere |
 | One `<main>` and one `<h1>` | Nested `<main>`, skipped levels |
 | `ash` for secondary text at AA contrast | Fading text below AA on dark |
 | Hover colour changes | Scroll-triggered reveals |

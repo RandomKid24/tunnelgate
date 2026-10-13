@@ -13,9 +13,13 @@ const { title, description = 'One-click RDP through a secure tunnel. No terminal
     <meta name="description" content={description} />
     <title>{title}</title>
     <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400&display=swap" />
     <link rel="stylesheet" href="/styles/global.css" />
   </head>
   <body>
+    <a href="#main-content" class="skip">Skip to content</a>
     <nav>
       <div class="nav-inner">
         <a href="/" class="nav-brand">
@@ -30,17 +34,6 @@ const { title, description = 'One-click RDP through a secure tunnel. No terminal
         </ul>
       </div>
     </nav>
-    <slot />
-    <script>
-      const observer = new IntersectionObserver((entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('visible');
-          }
-        }
-      }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
-
-      document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
-    </script>
+    <main id="main-content"><slot /></main>
   </body>
 </html>

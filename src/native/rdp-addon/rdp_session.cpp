@@ -6,6 +6,11 @@
 #endif
 #include <freerdp/version.h>
 #include <freerdp/gdi/gdi.h>
+#if defined(FREERDP_VERSION_MAJOR) && FREERDP_VERSION_MAJOR >= 3
+#include <freerdp/gdi/gfx.h>
+#include <freerdp/client/rdpgfx.h>
+#include <freerdp/channels/rdpgfx.h>
+#endif
 #include <freerdp/input.h>
 #include <freerdp/crypto/certificate.h>
 #include <freerdp/client/cmdline.h>
@@ -13,6 +18,7 @@
 #include <winpr/sspi.h>
 #include <winpr/string.h>
 #include <thread>
+#include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <cstdlib>
@@ -22,6 +28,10 @@
 #include <winpr/user.h>     // CF_TEXT / CF_UNICODETEXT
 #include <winpr/wtsapi.h>   // CHANNEL_RC_OK
 #include <freerdp/channels/cliprdr.h>
+#ifdef __APPLE__
+#include <freerdp/addin.h>
+#include <freerdp/client/channels.h>
+#endif
 #endif
 static std::mutex s_logMutex;
 
@@ -144,19 +154,41 @@ RdpSession::~RdpSession() {
   disconnect();
 }
 
-BOOL RdpSession::preConnectCallback(freerdp* instance) {
-#ifdef TG_CLIPBOARD
-  // Instantiate the static-channel addins we registered in connect() (cliprdr).
-  // Without this call FreeRDP core never loads channels from the settings array.
+#if defined(TG_CLIPBOARD) && defined(__APPLE__)
+// FreeRDP 3 frees and recreates the channel table right after PreConnect
+// (utils_reload_channels), so addins loaded in PreConnect are discarded and cliprdr
+// never connects. They must be loaded from the LoadChannels hook instead.
+static BOOL loadChannelsCallback(freerdp* instance) {
   rdpContext* ctx = instance->context;
+  // Channels (cliprdr, rdpdr) are linked into libfreerdp-client as static entries, but
+  // only freerdp_client_context_new() registers the provider that finds them. We create
+  // the context with plain freerdp_new(), so register it ourselves or load_addins fails
+  // with "Failed to load channel rdpdr". Re-registering is harmless.
+  freerdp_register_addin_provider(freerdp_channels_load_static_addin_entry, 0);
   if (!freerdp_client_load_addins(ctx->channels, ctx->settings)) {
     fileLog("[RDP] WARN: freerdp_client_load_addins failed — clipboard unavailable");
-  } else {
-    UINT rc1 = PubSub_SubscribeChannelConnected(ctx->pubSub, onChannelConnected);
-    UINT rc2 = PubSub_SubscribeChannelDisconnected(ctx->pubSub, onChannelDisconnected);
-    fileLog(("[RDP] clipboard: addins loaded, pubsub sub rc=" +
-             std::to_string(rc1) + "/" + std::to_string(rc2)).c_str());
+    return TRUE;  // not fatal: the session works without clipboard
   }
+  fileLog("[RDP] clipboard: addins loaded");
+  return TRUE;
+}
+#endif
+
+BOOL RdpSession::preConnectCallback(freerdp* instance) {
+#ifdef TG_CLIPBOARD
+  rdpContext* ctx = instance->context;
+#ifndef __APPLE__
+  // Instantiate the static-channel addins we registered in connect() (cliprdr).
+  // Without this call FreeRDP core never loads channels from the settings array.
+  if (!freerdp_client_load_addins(ctx->channels, ctx->settings)) {
+    fileLog("[RDP] WARN: freerdp_client_load_addins failed — clipboard unavailable");
+    return TRUE;
+  }
+#endif
+  UINT rc1 = PubSub_SubscribeChannelConnected(ctx->pubSub, onChannelConnected);
+  UINT rc2 = PubSub_SubscribeChannelDisconnected(ctx->pubSub, onChannelDisconnected);
+  fileLog(("[RDP] clipboard: pubsub sub rc=" +
+           std::to_string(rc1) + "/" + std::to_string(rc2)).c_str());
 #else
   (void)instance;
 #endif
@@ -372,10 +404,29 @@ bool RdpSession::connect() {
   freerdp_settings_set_bool(settings, FreeRDP_RemoteFxCodec, TRUE);
   freerdp_settings_set_bool(settings, FreeRDP_FastPathOutput, TRUE);
 
-  // Disable GFX pipeline and H264 codecs to prevent crashes in GDI mode on Windows
+  // Cut bandwidth over the tunnel: skip wallpaper and window/menu animations, keep
+  // ClearType so text stays crisp. These only affect what the server renders.
+  freerdp_settings_set_bool(settings, FreeRDP_DisableWallpaper, TRUE);
+  freerdp_settings_set_bool(settings, FreeRDP_DisableFullWindowDrag, TRUE);
+  freerdp_settings_set_bool(settings, FreeRDP_DisableMenuAnims, TRUE);
+  freerdp_settings_set_bool(settings, FreeRDP_AllowFontSmoothing, TRUE);
+  freerdp_settings_set_bool(settings, FreeRDP_CompressionEnabled, TRUE);
+
+  // Graphics pipeline (RDPGFX + H.264 AVC420): far less data and CPU than legacy bitmaps.
+  // OFF by default everywhere: the first macOS test gave a black screen and a dropped
+  // transport, and Windows crashed with it in GDI mode. Opt in with TG_RDP_GFX=1 while it
+  // is being debugged.
+  bool useGfx = false;
+#ifdef TG_CLIPBOARD
+  if (const char* gfxEnv = getenv("TG_RDP_GFX")) useGfx = atoi(gfxEnv) != 0;
+#endif
+  freerdp_settings_set_bool(settings, FreeRDP_SupportGraphicsPipeline, useGfx ? TRUE : FALSE);
+  freerdp_settings_set_bool(settings, FreeRDP_GfxH264, useGfx ? TRUE : FALSE);
   freerdp_settings_set_bool(settings, FreeRDP_GfxAVC444, FALSE);
-  freerdp_settings_set_bool(settings, FreeRDP_GfxH264, FALSE);
-  freerdp_settings_set_bool(settings, FreeRDP_SupportGraphicsPipeline, FALSE);
+  freerdp_settings_set_bool(settings, FreeRDP_GfxProgressive, useGfx ? TRUE : FALSE);
+  freerdp_settings_set_bool(settings, FreeRDP_GfxThinClient, FALSE);
+  freerdp_settings_set_bool(settings, FreeRDP_GfxSmallCache, FALSE);
+  fileLog(useGfx ? "[RDP] graphics pipeline (GFX/H.264): ON" : "[RDP] graphics pipeline (GFX/H.264): OFF");
 
 #ifdef TG_CLIPBOARD
   // Clipboard redirection (text only, no file transfer). RedirectClipboard=TRUE
@@ -405,21 +456,40 @@ bool RdpSession::connect() {
   
   freerdp_settings_set_uint32(settings, FreeRDP_DesktopScaleFactor, freerdpScale);
   freerdp_settings_set_uint32(settings, FreeRDP_DeviceScaleFactor, freerdpScale);
+#else
+  // The desktop is requested in physical pixels (retina = 2x CSS pixels). Tell Windows to
+  // scale its UI to match, otherwise everything renders at 100% and looks tiny.
+  if (scalePercent_ > 100) {
+    UINT32 deviceScale = scalePercent_ >= 160 ? 180 : (scalePercent_ >= 120 ? 140 : 100);
+    freerdp_settings_set_uint32(settings, FreeRDP_DesktopScaleFactor, (UINT32)scalePercent_);
+    freerdp_settings_set_uint32(settings, FreeRDP_DeviceScaleFactor, deviceScale);
+  }
 #endif
 
   // VerifyX509Certificate / VerifyCertificate callbacks are NOT set.
   // IgnoreCertificate=TRUE handles certificate acceptance without callbacks.
   // Server name is detected via serverHostname_ from tunnel config in postConnectCallback.
   instance_->PreConnect = preConnectCallback;
+#if defined(TG_CLIPBOARD) && defined(__APPLE__)
+  instance_->LoadChannels = loadChannelsCallback;
+#endif
   instance_->PostConnect = postConnectCallback;
 
-  WLog_SetLogLevel(WLog_Get("com.freerdp.core.tls"), WLOG_TRACE);
-  WLog_SetLogLevel(WLog_Get("com.freerdp.core.nego"), WLOG_TRACE);
-  WLog_SetLogLevel(WLog_Get("com.freerdp.core.transport"), WLOG_TRACE);
-  WLog_SetLogLevel(WLog_Get("com.freerdp.core.nla"), WLOG_TRACE);
-  WLog_SetLogLevel(WLog_Get("com.freerdp.core.credssp"), WLOG_TRACE);
-  WLog_SetLogLevel(WLog_Get("com.winpr.sspi"), WLOG_TRACE);
-  WLog_SetLogLevel(WLog_GetRoot(), WLOG_TRACE);
+  // Packet-level TRACE logging is expensive (tens of thousands of disk writes per
+  // session). Only enable it when TG_RDP_TRACE is set; otherwise log warnings+.
+  if (getenv("TG_RDP_TRACE")) {
+    WLog_SetLogLevel(WLog_Get("com.freerdp.core.tls"), WLOG_TRACE);
+    WLog_SetLogLevel(WLog_Get("com.freerdp.core.nego"), WLOG_TRACE);
+    WLog_SetLogLevel(WLog_Get("com.freerdp.core.transport"), WLOG_TRACE);
+    WLog_SetLogLevel(WLog_Get("com.freerdp.core.nla"), WLOG_TRACE);
+    WLog_SetLogLevel(WLog_Get("com.freerdp.core.credssp"), WLOG_TRACE);
+    WLog_SetLogLevel(WLog_Get("com.winpr.sspi"), WLOG_TRACE);
+    WLog_SetLogLevel(WLog_GetRoot(), WLOG_TRACE);
+  } else {
+    WLog_SetLogLevel(WLog_GetRoot(), WLOG_WARN);
+    // Clipboard channel is cheap to log and the first thing to check when paste fails.
+    WLog_SetLogLevel(WLog_Get("com.freerdp.channels.cliprdr.client"), WLOG_DEBUG);
+  }
 
   const char* actualHost = freerdp_settings_get_string(settings, FreeRDP_ServerHostname);
   UINT32 actualPort = freerdp_settings_get_uint32(settings, FreeRDP_ServerPort);
@@ -540,9 +610,15 @@ void RdpSession::pump() {
 
 #ifdef _WIN32
     WaitForMultipleObjects(ncount, handles, FALSE, 100);
+#else
+    // Block until the connection has data (or 20ms for clipboard/shutdown checks) instead
+    // of polling on a fixed 10ms sleep, which added up to 10ms of latency per update.
+    WaitForMultipleObjects(ncount, handles, FALSE, 20);
 #endif
 
-    if (!freerdp_check_event_handles(context_)) {
+    const BOOL eventsOk = freerdp_check_event_handles(context_);
+    flushDirty();
+    if (!eventsOk) {
 #if defined(FREERDP_VERSION_MAJOR) && (FREERDP_VERSION_MAJOR >= 3)
       int shall = freerdp_shall_disconnect_context(context_);
 #else
@@ -565,7 +641,9 @@ void RdpSession::pump() {
     } else {
       consecutiveFailures = 0;
     }
+#ifdef _WIN32
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
+#endif
   }
 }
 
@@ -635,18 +713,61 @@ BOOL RdpSession::endPaint(rdpContext* ctx) {
     return TRUE;
   }
 
+  self->addDirty(x, y, w, h);
+
+  wnd->invalid->null = TRUE;
+  wnd->ninvalid = 0;
+
+  return TRUE;
+}
+
+void RdpSession::addDirty(INT32 x, INT32 y, INT32 w, INT32 h) {
+  const int64_t area = (int64_t)w * h;
+  if (pendArea_ == 0) {
+    pendX_ = x; pendY_ = y; pendW_ = w; pendH_ = h; pendArea_ = area;
+    return;
+  }
+  const INT32 ux = pendX_ < x ? pendX_ : x, uy = pendY_ < y ? pendY_ : y;
+  const INT32 ux2 = (pendX_ + pendW_) > (x + w) ? (pendX_ + pendW_) : (x + w);
+  const INT32 uy2 = (pendY_ + pendH_) > (y + h) ? (pendY_ + pendH_) : (y + h);
+  const int64_t unionArea = (int64_t)(ux2 - ux) * (uy2 - uy);
+  // Two small, distant rects would merge into a huge one; send what we have first.
+  if (unionArea > 3 * (pendArea_ + area) && unionArea > 256 * 256) {
+    flushDirty();
+    pendX_ = x; pendY_ = y; pendW_ = w; pendH_ = h; pendArea_ = area;
+    return;
+  }
+  pendX_ = ux; pendY_ = uy; pendW_ = ux2 - ux; pendH_ = uy2 - uy;
+  pendArea_ += area;
+}
+
+void RdpSession::flushDirty() {
+  if (pendArea_ == 0) return;
+  INT32 x = pendX_, y = pendY_, w = pendW_, h = pendH_;
+  pendArea_ = 0;
+
+  rdpGdi* gdi = context_ ? context_->gdi : nullptr;
+  if (!gdi || !gdi->primary_buffer || !listener_) return;
+
+  // The desktop may have been resized since this region was recorded.
+  if (x < 0) { w += x; x = 0; }
+  if (y < 0) { h += y; y = 0; }
+  if (x + w > (INT32)gdi->width)  w = (INT32)gdi->width  - x;
+  if (y + h > (INT32)gdi->height) h = (INT32)gdi->height - y;
+  if (w <= 0 || h <= 0) return;
+
   int stride = gdi->stride;  // Use gdi->stride — may include alignment padding
   int bpp = 4;
 
   const BYTE* src = gdi->primary_buffer;
   size_t needed = (size_t)w * h * bpp;
-  if (self->frameBuffer_.size() < needed) {
-    self->frameBuffer_.resize(needed);
+  if (frameBuffer_.size() < needed) {
+    frameBuffer_.resize(needed);
   }
 
   for (int row = 0; row < h; row++) {
     const BYTE* srcRow = src + (y + row) * stride + x * bpp;
-    uint8_t* dstRow = self->frameBuffer_.data() + row * w * bpp;
+    uint8_t* dstRow = frameBuffer_.data() + row * w * bpp;
     for (int col = 0; col < w; col++) {
       dstRow[col * 4 + 0] = srcRow[col * 4 + 2];  // R ← B (BGRX→RGBA)
       dstRow[col * 4 + 1] = srcRow[col * 4 + 1];  // G ← G
@@ -656,15 +777,11 @@ BOOL RdpSession::endPaint(rdpContext* ctx) {
   }
 
   try {
-    self->listener_->onBitmapUpdate(x, y, w, h, self->frameBuffer_.data(), needed);
+    listener_->onBitmapUpdate(x, y, w, h, frameBuffer_.data(), needed);
   } catch (const std::exception& e) {
   } catch (...) {
   }
 
-  wnd->invalid->null = TRUE;
-  wnd->ninvalid = 0;
-
-  return TRUE;
 }
 
 BOOL RdpSession::desktopResize(rdpContext* ctx) {
@@ -675,6 +792,7 @@ BOOL RdpSession::desktopResize(rdpContext* ctx) {
     fileLog("[RDP] desktopResize: self is null");
     return FALSE;
   }
+  self->flushDirty();  // pending region belongs to the old buffer size
 
   rdpSettings* settings = ctx->settings;
   UINT32 newW = freerdp_settings_get_uint32(settings, FreeRDP_DesktopWidth);
@@ -768,12 +886,17 @@ void RdpSession::setClipboardText(const std::string& utf8) {
     if (hostClipboardText_ == utf8) return;
     hostClipboardText_ = utf8;
   }
+  fileLog(("[RDP] clipboard: host text set (" + std::to_string(utf8.size()) + " bytes)").c_str());
   clipboardDirty_ = true;  // pump thread picks this up and advertises formats
 }
 
 void RdpSession::sendClientFormatList() {
   CliprdrClientContext* cb = cliprdr_.load();
-  if (!cb || !cb->ClientFormatList) return;
+  if (!cb || !cb->ClientFormatList) {
+    // Channel not up yet (host text was set right after connect): retry on the next tick.
+    clipboardDirty_ = true;
+    return;
+  }
 
   bool haveText;
   {
@@ -795,6 +918,7 @@ void RdpSession::sendClientFormatList() {
   list.numFormats = n;
   list.formats = formats;
 
+  fileLog(("[RDP] clipboard: advertising " + std::to_string(n) + " format(s) to server").c_str());
   UINT rc = cb->ClientFormatList(cb, &list);
   if (rc != CHANNEL_RC_OK) {
     fileLog(("[RDP] clipboard: ClientFormatList rc=" + std::to_string(rc)).c_str());
@@ -802,6 +926,18 @@ void RdpSession::sendClientFormatList() {
 }
 
 void RdpSession::onChannelConnected(void* context, const ChannelConnectedEventArgs* e) {
+  if (e && e->name) fileLog((std::string("[RDP] channel connected: ") + e->name).c_str());
+  if (e && e->name && strcmp(e->name, RDPGFX_DVC_CHANNEL_NAME) == 0) {
+    rdpContext* ctx = (rdpContext*)context;
+    // GDI renders GFX surfaces into the primary buffer and then calls our EndPaint.
+    if (ctx->gdi && e->pInterface &&
+        gdi_graphics_pipeline_init(ctx->gdi, (RdpgfxClientContext*)e->pInterface)) {
+      fileLog("[RDP] gfx: graphics pipeline attached to GDI");
+    } else {
+      fileLog("[RDP] gfx: gdi_graphics_pipeline_init failed");
+    }
+    return;
+  }
   if (!e || !e->name || strcmp(e->name, CLIPRDR_SVC_CHANNEL_NAME) != 0) return;
   RdpSession* self = getSelf((rdpContext*)context);
   if (!self) return;
@@ -822,6 +958,11 @@ void RdpSession::onChannelConnected(void* context, const ChannelConnectedEventAr
 }
 
 void RdpSession::onChannelDisconnected(void* context, const ChannelDisconnectedEventArgs* e) {
+  if (e && e->name && strcmp(e->name, RDPGFX_DVC_CHANNEL_NAME) == 0) {
+    rdpContext* ctx = (rdpContext*)context;
+    if (ctx->gdi && e->pInterface) gdi_graphics_pipeline_uninit(ctx->gdi, (RdpgfxClientContext*)e->pInterface);
+    return;
+  }
   if (!e || !e->name || strcmp(e->name, CLIPRDR_SVC_CHANNEL_NAME) != 0) return;
   RdpSession* self = getSelf((rdpContext*)context);
   if (self) {

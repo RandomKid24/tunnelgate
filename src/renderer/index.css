@@ -168,37 +168,6 @@
    TunnelGate app styles
    ------------------------------------------------------------------ */
 
-/*
- * Legacy design tokens, kept as aliases while the UI migrates to befui.
- * Delete once no renderer file references the old --bg-, --accent- or --shadow- names.
- */
-:root,
-.dark {
-  --bg-primary: var(--background);
-  --bg-secondary: var(--card);
-  --bg-tertiary: var(--secondary);
-  --bg-card: var(--card);
-  --border-color: var(--border);
-  --text-primary: var(--foreground);
-  --text-secondary: var(--muted-foreground);
-  --text-muted: var(--muted-foreground);
-  --accent-green: var(--success);
-  --accent-red: var(--destructive);
-  --accent-amber: var(--warning);
-  --accent-blue: var(--primary);
-  --accent-purple: #8b5cf6;
-  --overlay-bg: rgb(0 0 0 / 0.55);
-  --radius-xs: 6px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-full: 9999px;
-  --shadow-resting: 0 1px 3px rgb(0 0 0 / 0.18);
-  --shadow-lift: 0 4px 16px rgb(0 0 0 / 0.16);
-  --shadow-modal: 0 16px 28px -6px rgb(0 0 0 / 0.45);
-  --shadow-modal-danger: 0 16px 28px -6px rgb(0 0 0 / 0.45), 0 0 20px rgb(239 68 68 / 0.12);
-}
-
 /* Native scrollbars, form controls and selection follow the active theme. The `dark` class is
  * set on <html> by initTheme() (see src/renderer/hooks/useTheme.ts). */
 html {

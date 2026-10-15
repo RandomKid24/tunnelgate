@@ -19,6 +19,8 @@ const api = {
   wifi: {
     getStatus: (bypassCache?: boolean): Promise<WifiStatusResult> =>
       ipcRenderer.invoke(IPC_CHANNELS.WIFI_GET_STATUS, bypassCache),
+    openLocationSettings: (): Promise<void> =>
+      ipcRenderer.invoke(IPC_CHANNELS.WIFI_OPEN_LOCATION_SETTINGS),
   },
 
   servers: {

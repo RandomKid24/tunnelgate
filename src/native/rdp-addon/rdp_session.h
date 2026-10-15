@@ -45,6 +45,7 @@ public:
              RdpFrameListener* listener,
              const std::string& serverHostname = "");
   ~RdpSession();
+  void setScalePercent(int pct) { scalePercent_ = pct; }
 
   bool connect();
   void disconnect();
@@ -107,12 +108,20 @@ private:
   std::string serverHostname_;
   std::string serverName_;
   int port_;
+  int scalePercent_ = 100;  // display scale (macOS retina); Windows detects its own
   int width_;
   int height_;
   std::string username_;
   std::string password_;
 
   void pump();
+
+  // Dirty-rect coalescing: endPaint only records the region; the pump thread sends one
+  // bitmap per batch of server updates instead of one per PDU.
+  INT32 pendX_ = 0, pendY_ = 0, pendW_ = 0, pendH_ = 0;
+  int64_t pendArea_ = 0;  // sum of the rect areas merged into the pending rect
+  void addDirty(INT32 x, INT32 y, INT32 w, INT32 h);
+  void flushDirty();
 
   static RdpSession* getSelf(rdpContext* ctx);
 };

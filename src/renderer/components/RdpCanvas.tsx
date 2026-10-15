@@ -36,6 +36,15 @@ function buttonToUpFlag(button: number): number {
   return PTR_FLAGS_BUTTON1;
 }
 
+const IS_MAC = /Mac/i.test(navigator.platform);
+
+// On a Mac, Cmd is the shortcut key (Cmd+C/V/X/A/Z). Map it to Ctrl so those shortcuts
+// work in the remote Windows session instead of sending the Windows key.
+function resolveKey(code: string): { code: number; extended?: boolean } | undefined {
+  if (IS_MAC && (code === 'MetaLeft' || code === 'MetaRight')) return { code: 0x1d };
+  return KEY_TO_SCANCODE[code];
+}
+
 const KEY_TO_SCANCODE: Record<string, { code: number; extended?: boolean }> = {
   Escape: { code: 0x01 },
   F1: { code: 0x3b },
@@ -161,16 +170,20 @@ export function RdpCanvas({ tunnelId, width, height, connected }: Props) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    // Opaque, low-latency surface: the remote desktop never needs alpha blending, and
+    // `desynchronized` lets the browser skip compositor sync for lower input-to-pixel delay.
+    const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
     if (!ctx) return;
 
     for (const frame of frames) {
       if (frame.w <= 0 || frame.h <= 0) continue;
       try {
-        const imageData = ctx.createImageData(frame.w, frame.h);
-        const src = new Uint8ClampedArray(frame.data);
-        imageData.data.set(src);
-        ctx.putImageData(imageData, frame.x, frame.y);
+        // Wrap the received bytes directly; copying them again just to draw is wasted work.
+        const raw = frame.data as ArrayBuffer | ArrayBufferView;
+        const bytes = ArrayBuffer.isView(raw)
+          ? new Uint8ClampedArray(raw.buffer as ArrayBuffer, raw.byteOffset, raw.byteLength)
+          : new Uint8ClampedArray(raw);
+        ctx.putImageData(new ImageData(bytes, frame.w, frame.h), frame.x, frame.y);
       } catch {}
     }
 
@@ -234,10 +247,18 @@ export function RdpCanvas({ tunnelId, width, height, connected }: Props) {
     window.cloudflareRdp.rdp.sendMouse(tunnelId, flags, pos.x, pos.y);
   }, [tunnelId, getCanvasPos]);
 
+  // Mice report far more moves than the display refreshes; send only the latest per frame.
+  const pendingMoveRef = useRef<{ x: number; y: number } | null>(null);
+  const moveRafRef = useRef(0);
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    const pos = getCanvasPos(e);
-    const flags = PTR_FLAGS_MOVE;
-    window.cloudflareRdp.rdp.sendMouse(tunnelId, flags, pos.x, pos.y);
+    const hadPending = pendingMoveRef.current !== null;
+    pendingMoveRef.current = getCanvasPos(e);
+    if (hadPending) return;
+    moveRafRef.current = requestAnimationFrame(() => {
+      const pos = pendingMoveRef.current;
+      pendingMoveRef.current = null;
+      if (pos) window.cloudflareRdp.rdp.sendMouse(tunnelId, PTR_FLAGS_MOVE, pos.x, pos.y);
+    });
   }, [tunnelId, getCanvasPos]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -253,7 +274,7 @@ export function RdpCanvas({ tunnelId, width, height, connected }: Props) {
   const handleBlur = useCallback(() => {
     if (pressedKeysRef.current.size === 0) return;
     for (const code of pressedKeysRef.current) {
-      const mapped = KEY_TO_SCANCODE[code];
+      const mapped = resolveKey(code);
       if (mapped) {
         const flags = 0x8000 | (mapped.extended ? 0x0100 : 0);
         window.cloudflareRdp.rdp.sendKeyboard(tunnelId, flags, mapped.code);
@@ -272,17 +293,23 @@ export function RdpCanvas({ tunnelId, width, height, connected }: Props) {
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     e.preventDefault();
-    const mapped = KEY_TO_SCANCODE[e.code];
+    const mapped = resolveKey(e.code);
     if (mapped) {
-      pressedKeysRef.current.add(e.code);
       const flags = mapped.extended ? 0x0100 : 0;
       window.cloudflareRdp.rdp.sendKeyboard(tunnelId, flags, mapped.code);
+      // macOS never delivers keyup for a key pressed while Cmd is held, so release it now
+      // or the remote sees it stuck down (and auto-repeating).
+      if (IS_MAC && e.metaKey && e.code !== 'MetaLeft' && e.code !== 'MetaRight') {
+        window.cloudflareRdp.rdp.sendKeyboard(tunnelId, 0x8000 | flags, mapped.code);
+      } else {
+        pressedKeysRef.current.add(e.code);
+      }
     }
   }, [tunnelId]);
 
   const handleKeyUp = useCallback((e: React.KeyboardEvent) => {
     e.preventDefault();
-    const mapped = KEY_TO_SCANCODE[e.code];
+    const mapped = resolveKey(e.code);
     if (mapped) {
       pressedKeysRef.current.delete(e.code);
       const flags = 0x8000 | (mapped.extended ? 0x0100 : 0);
@@ -302,7 +329,7 @@ export function RdpCanvas({ tunnelId, width, height, connected }: Props) {
         cursor: connected ? 'default' : 'not-allowed',
         outline: 'none',
         background: '#000',
-        imageRendering: '-webkit-optimize-contrast',
+        imageRendering: 'auto',
       }}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}

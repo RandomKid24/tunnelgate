@@ -42,7 +42,7 @@ npx tsc -p tsconfig.preload.json --noEmit  # preload
 - **Windows OpenSSL legacy provider**: FreeRDP 3 needs RC4 legacy provider. `bootstrap.ts` sets `OPENSSL_MODULES` and `OPENSSL_CONF` env vars at runtime. The `legacy.dll` + `ossl-modules/` are in `prebuilt/windows-x64/`.
 - **`bootstrap.ts` must be the first import** in `src/main/index.ts`. It sets `PATH`, `OPENSSL_MODULES`, and `OPENSSL_CONF` before the native addon loads. On Windows, it may re-launch the process with updated env vars.
 - **`vite.config.mts` must keep the `.mts` extension**: `@tailwindcss/vite` is ESM-only and a CommonJS `.ts` config fails to load. The file was renamed from `vite.config.ts` for this reason.
-- **Renderer has no error boundary.** A single uncaught render error unmounts the whole tree and leaves a blank window (this is how the black-screen bug presented). Treat any new render-time throw as app-fatal.
+- **Renderer error boundary** (`components/ErrorBoundary.tsx`, wrapped in `main.tsx`) catches render-time throws and shows a Reload screen instead of a blank window. It does not catch errors in event handlers or async code.
 - **Renderer images must stay above 4 KB.** The renderer CSP is `default-src 'self'`, and Vite inlines assets smaller than `build.assetsInlineLimit` (4096 B) as `data:` URIs, which that CSP blocks. Importing an icon from `resources/` is fine as long as the file is bigger than the limit (the current app icon is ~22 KB); if you ever add a tiny image, raise `assetsInlineLimit` or add `img-src 'self' data:` to the CSP in `index.html`.
 
 ## Architecture
@@ -50,7 +50,7 @@ npx tsc -p tsconfig.preload.json --noEmit  # preload
 - **Main process** (`src/main/`): CommonJS, compiled via `tsconfig.main.json` → `dist/`. Entry: `index.ts`. Key files: `tunnelManager.ts` (cloudflared spawn/kill), `rdpViewManager.ts` (addon bridge), `credentialStore.ts` (safeStorage encrypt/decrypt), `store.ts` (electron-store persistence).
 - **Preload** (`src/preload/`): CommonJS, compiled via `tsconfig.preload.json`. Bridges IPC to renderer as `window.pq` etc.
 - **Renderer** (`src/renderer/`): ESNext + React JSX + Tailwind v4, compiled via `vite.config.mts` + `tsconfig.json` → `dist/renderer/`. Vite aliases: `@` → `src/renderer/`, `@shared` → `src/shared/` (mirrored in the `paths` block of `tsconfig.json`).
-- **UI layer** (`src/renderer/components/ui/`): vendored [befui](https://befui.vercel.app/) components (Radix + CVA + Tailwind). Import as `@/components/ui/<name>`. `src/renderer/index.css` holds the Tailwind v4 import, the befui theme tokens, and a legacy `--bg-*` / `--accent-*` / `--shadow-*` alias block that exists **only** because `RdpView.tsx` still uses the old token names — do not delete it until `RdpView` is migrated.
+- **UI layer** (`src/renderer/components/ui/`): vendored [befui](https://befui.vercel.app/) components (Radix + CVA + Tailwind). Import as `@/components/ui/<name>`. `src/renderer/index.css` holds the Tailwind v4 import, the befui theme tokens.
 - **Theming** (`src/renderer/hooks/useTheme.ts`): light / dark / system, defaulting to **light** (`DEFAULT_THEME`). Picked from the topbar (`components/ThemeMenu.tsx`) and persisted to `localStorage` under `tunnelgate:theme`. `initTheme()` runs in `main.tsx` before the first render and toggles `light`/`dark` on `<html>`, which is what befui's `dark:` variant keys off. Never hardcode `dark` on the document. `RdpView` pins `className="dark"` on its own root so the remote desktop stays dark in light mode.
 - **Branding** (`src/renderer/components/BrandMark.tsx`): the real app icon from `resources/icons/`, used in the sidebar header and the sign-in card. The artwork is a dark navy mark on a transparent background, so it is always drawn on a white tile — otherwise it would disappear against the dark sidebar.
 - **Shared types** (`src/shared/`): Used by both main and renderer. Each tsconfig includes it.
@@ -91,7 +91,7 @@ src/main/cloudflaredResolver.ts # locates cloudflared (bundled > system > PATH)
 src/main/rdpViewManager.ts     # FreeRDP addon bridge + clipboard bridge
 src/main/credentialStore.ts    # safeStorage encrypt/decrypt
 src/main/store.ts              # electron-store persistence
-src/renderer/index.css         # Tailwind v4 import + befui theme + legacy token aliases (RdpView only)
+src/renderer/index.css         # Tailwind v4 import + befui theme tokens
 src/renderer/components/ui/    # vendored befui components (Radix + CVA + Tailwind)
 src/renderer/components/BrandMark.tsx  # app icon tile (sidebar + sign-in card)
 src/renderer/components/ThemeMenu.tsx  # topbar light/dark/system picker

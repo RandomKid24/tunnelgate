@@ -6,29 +6,43 @@
 <h1 align="center">TunnelGate</h1>
 
 <p align="center">
-  <strong>One-click RDP through Cloudflare Zero Trust Tunnel</strong>
+  <strong>One-click RDP through Cloudflare Zero Trust tunnels</strong>
   <br>
-  <sub>In-app FreeRDP 3 viewer &bull; Native fullscreen &bull; Cross-platform</sub>
+  <sub>Built-in FreeRDP viewer &bull; Smooth, low-latency screen &bull; macOS, Windows and Linux</sub>
 </p>
 
 <p align="center">
-  <a href="https://github.com/RandomKid24/cloudflareRDB-gui/releases">
-    <img src="https://img.shields.io/github/v/release/RandomKid24/cloudflareRDB-gui?style=flat-square&label=release&color=blue" alt="Release">
+  <a href="https://github.com/RandomKid24/tunnelgate/releases">
+    <img src="https://img.shields.io/github/v/release/RandomKid24/tunnelgate?style=flat-square&label=release&color=blue" alt="Release">
   </a>
   <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue?style=flat-square" alt="Platforms">
-  <img src="https://img.shields.io/badge/RDP-FreeRDP%203-brightgreen?style=flat-square" alt="RDP Engine">
+  <img src="https://img.shields.io/badge/RDP-FreeRDP-brightgreen?style=flat-square" alt="RDP Engine">
   <img src="https://img.shields.io/badge/tunnel-Cloudflare-orange?style=flat-square" alt="Tunnel">
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License">
   <br>
   <img src="https://img.shields.io/badge/electron-31-47848F?style=flat-square&logo=electron" alt="Electron">
-  <img src="https://img.shields.io/badge/react-19-61DAFB?style=flat-square&logo=react" alt="React">
-  <img src="https://img.shields.io/badge/vite-6-646CFF?style=flat-square&logo=vite" alt="Vite">
-  <img src="https://img.shields.io/github/last-commit/RandomKid24/cloudflareRDB-gui?style=flat-square" alt="Last Commit">
+  <img src="https://img.shields.io/badge/react-18-61DAFB?style=flat-square&logo=react" alt="React">
+  <img src="https://img.shields.io/badge/vite-5-646CFF?style=flat-square&logo=vite" alt="Vite">
+  <img src="https://img.shields.io/github/last-commit/RandomKid24/tunnelgate?style=flat-square" alt="Last Commit">
 </p>
 
 <p align="center">
-  <i>No terminals. No config files. No headache. Just point, click, and connect to your remote desktop through Cloudflare Zero Trust.</i>
+  <i>No terminals. No config files. No headache. Pick a server, click connect, and you are on the remote desktop.</i>
 </p>
+
+---
+
+## ✨ What's new in 2.2
+
+A major overhaul of the interface and of how the remote screen is drawn.
+
+- **New interface.** Rebuilt on the [befui](https://befui.vercel.app/) component set with light, dark and system themes (light by default), a new sidebar and a consistent layout on every page.
+- **Smoother remote screen.** Screen updates are batched, mouse moves are sent once per screen refresh, the network loop waits for data instead of polling, and the remote is drawn at window size with smooth scaling.
+- **Connect and disconnect never freeze the app.** The native work runs off the main thread, so the window stays responsive during the handshake.
+- **One-click disconnect.** The toolbar **Disconnect** button ends the session and drops the tunnel.
+- **Mac keyboard that works.** <kbd>Cmd</kbd>+<kbd>C</kbd>/<kbd>V</kbd>/<kbd>X</kbd>/<kbd>A</kbd>/<kbd>Z</kbd> act as <kbd>Ctrl</kbd> shortcuts inside the remote session.
+- **macOS Location helper.** An **Open Settings** button next to the Wi-Fi status jumps straight to the Location Services pane.
+- **More resilient.** A renderer error boundary replaces blank-window crashes with a Reload screen, and the update check now points at the right repository.
 
 ---
 
@@ -37,14 +51,31 @@
 | | Feature | Details |
 |---|---|---|
 | 🚀 | **One-click Connect** | Tunnel + RDP in a single click via `cloudflared access tcp` |
-| 🖥️ | **In-app RDP Viewer** | FreeRDP 3 GDI rendering in an Electron `<canvas>`, no external client needed |
-| 📐 | **Dynamic Resolution** | Auto-detects viewport size via `ResizeObserver`, adapts to `DesktopResize` events |
-| 🪟 | **True Fullscreen** | Native Fullscreen API hides OS taskbar & window chrome; auto-hide toolbar reveals on hover |
+| 🖥️ | **In-app RDP Viewer** | FreeRDP rendering into an Electron `<canvas>`, no external client needed |
+| 📐 | **Window-size Resolution** | The remote desktop is sized to your window and follows `DesktopResize` events |
+| 🪟 | **True Fullscreen** | Native Fullscreen API hides OS chrome; the toolbar reveals on hover |
+| 🎨 | **Light / Dark / System theme** | Picked from the top bar, remembered between launches |
+| 📋 | **Clipboard sync** | Text copy and paste between your machine and the remote (FreeRDP 3 builds) |
 | 🔐 | **Zero Plaintext Secrets** | Passwords encrypted at rest with Electron `safeStorage` (DPAPI / Keychain / libsecret) |
+| 📶 | **Wi-Fi gate** | Optionally restrict connections to approved networks |
 | 🪟 | **Native Client Fallback** | Launch `mstsc.exe` (Windows) or Microsoft Remote Desktop (macOS) with pre-filled credentials |
-| 🔄 | **Auto-Reconnect** | Survives transient tunnel interruptions |
-| ⌨️ | **Esc goes to the session** | <kbd>Esc</kbd> is forwarded to the remote desktop; in fullscreen it exits fullscreen. Disconnect with the **← Back** button |
-| 🌍 | **Cross-Platform** | macOS (Intel & Apple Silicon), Windows x64, Linux x64 |
+| 🔔 | **Update notice** | Tells you when a newer stable release is available |
+| ⌨️ | **Esc goes to the session** | <kbd>Esc</kbd> is forwarded to the remote desktop; in fullscreen it exits fullscreen |
+| 🌍 | **Cross-Platform** | macOS (Apple Silicon), Windows x64, Linux x64 |
+
+---
+
+## 📥 Download
+
+Grab the latest installer from the [Releases page](https://github.com/RandomKid24/tunnelgate/releases):
+
+| Platform | File |
+|---|---|
+| macOS (Apple Silicon) | `TunnelGate-arm64.dmg` |
+| Windows x64 | `TunnelGate-Setup-x64.exe` |
+| Linux x64 | `TunnelGate-x86_64.AppImage` or `TunnelGate-amd64.deb` |
+
+Releases whose title says **Beta** or **Stable** are labelled so you can pick the one you want. On macOS, if the system says the app is damaged, run `xattr -cr /Applications/TunnelGate.app` (see [macOS notes](#macos-code-signing-workarounds)).
 
 ---
 
@@ -56,15 +87,12 @@
 flowchart LR
     subgraph App["TunnelGate App"]
         UI["React (Vite)"] <-->|IPC| Main["Electron Main Process"]
-        Main <-->|N-API| Native["C++ Addon<br/>FreeRDP 3"]
+        Main <-->|N-API| Native["C++ Addon<br/>FreeRDP"]
         Main -->|spawns| CT["cloudflared"]
     end
 
     CT -->|"access tcp"| CF["Cloudflare<br/>Zero Trust Edge"]
     CF -->|"443/tls"| Server["RDP Server<br/>port 3389"]
-
-    UI -->|"ResizeObserver"| Rdp["RdpView.tsx"]
-    Rdp -->|"← Back button"| Disc["Disconnect Hook"]
 
     style UI fill:#1a1a2e,stroke:#e94560,color:#fff
     style Main fill:#16213e,stroke:#0f3460,color:#fff
@@ -79,22 +107,22 @@ flowchart LR
 ```mermaid
 flowchart LR
     subgraph Server["RDP Server"]
-        Frames["GDI Frames"]
+        Frames["Screen updates"]
     end
 
-    subgraph Addon["C++ Native Addon (worker thread)"]
-        Freerdp["freerdp_connect()"] --> Decode["GDI Decode"]
-        Decode --> Canvas["Raw RGBA Buffer"]
-        Canvas -->|"PostMessage"| Main2["Main Process"]
+    subgraph Addon["C++ Native Addon"]
+        Connect["connect (worker thread)"] --> Pump["Pump thread:<br/>wait for data, decode"]
+        Pump --> Batch["Merge dirty rectangles<br/>(one image per batch)"]
+        Batch --> RGBA["RGBA buffer"]
     end
 
-    subgraph Electron["Electron Process"]
-        Main2 -->|"IPC: rdp-frame"| Renderer["Renderer"]
-        Renderer -->|"putImageData"| CanvasElem["<canvas/>"]
-        Renderer -->|"ResizeObserver"| Resize["Dynamic Resolution"]
+    subgraph Electron["Electron"]
+        Main2["Main Process"] -->|"IPC: rdp:frame"| Renderer["Renderer"]
+        Renderer -->|"putImageData per refresh"| CanvasElem["canvas"]
     end
 
-    Mouse["Mouse/KB Events"] -->|"IPC: rdp-input"| Main2
+    RGBA --> Main2
+    Mouse["Mouse / keyboard<br/>(moves once per refresh)"] -->|IPC| Main2
     Main2 -->|"freerdp_input_send*()"| Addon
 
     style Server fill:#2d6a4f,stroke:#1a1a2e,color:#fff
@@ -112,31 +140,19 @@ flowchart LR
 | Component | macOS | Windows | Linux |
 |---|---|---|---|
 | **Node.js** | `brew install node` | [Download](https://nodejs.org/) 18+ | `apt install nodejs npm` |
-| **cloudflared** | Fetched automatically by `npm run build:all` (pinned + checksummed in `scripts/fetch-cloudflared.js`) and bundled into the packaged app — no separate install | | |
-| **FreeRDP 3** | `brew install freerdp` | Included via `prebuilt/windows-x64/` (no install needed) | `apt install freerdp3-dev` |
+| **cloudflared** | Fetched automatically by `npm run build:all` (pinned + checksummed in `scripts/fetch-cloudflared.js`) and bundled into the packaged app, no separate install | | |
+| **FreeRDP** | `brew install freerdp` (FreeRDP 3) | Included via `prebuilt/windows-x64/` (no install needed) | `apt install freerdp3-dev` |
 | **Build Tools** | Xcode CLI: `xcode-select --install` | VS 2022 BuildTools + cmake + vcpkg | `build-essential` + cmake |
 
 ### Install & Run
 
 ```sh
-git clone https://github.com/RandomKid24/cloudflareRDB-gui.git
-cd cloudflareRDB-gui
+git clone https://github.com/RandomKid24/tunnelgate.git
+cd tunnelgate
 npm install
 npm run build:all     # builds C++ addon + compiles TypeScript + bundles Vite
 npm run dev           # Vite dev server + Electron with hot reload
 ```
-
-### PQ Error Monitoring
-
-TunnelGate initializes `pq-befu` in the Electron main process. Set these variables in the main-process launch environment:
-
-```sh
-PQ_API_KEY=your_pq_api_key
-PQ_BASE_URL=http://localhost:8000   # optional; this is the default
-NODE_ENV=development                # or production
-```
-
-Do not expose `PQ_API_KEY` through renderer or Vite environment variables. The renderer reports errors through the preload bridge as `window.pq`, while the API key stays in the main process.
 
 > **Windows note**: If `npm run dev` has a PowerShell escape issue, use separate terminals:
 > ```sh
@@ -146,40 +162,57 @@ Do not expose `PQ_API_KEY` through renderer or Vite environment variables. The r
 > npm run dev:main
 > ```
 
+### Typechecking
+
+`npm run build` only typechecks the main and preload processes. Typecheck the renderer too before committing UI changes:
+
+```sh
+npx tsc -p tsconfig.json --noEmit          # renderer + shared
+npx tsc -p tsconfig.main.json --noEmit     # main
+npx tsc -p tsconfig.preload.json --noEmit  # preload
+```
+
+### Error Monitoring
+
+TunnelGate initializes `pq-befu` in the Electron main process. Set these variables in the main-process launch environment:
+
+```sh
+PQ_API_KEY=your_pq_api_key
+PQ_BASE_URL=http://localhost:8000   # optional; this is the default
+NODE_ENV=development                # or production
+```
+
+Never expose `PQ_API_KEY` through renderer or Vite environment variables. The renderer reports errors through the preload bridge as `window.pq`, while the API key stays in the main process.
+
 ### Package for Distribution
 
 ```sh
-# macOS — DMG
+# macOS: DMG
 npm run build:all && npx electron-builder --mac
 
-# Windows — NSIS Installer
+# Windows: NSIS installer
 npm run build:all && npx electron-builder --win
 
-# Linux — AppImage + .deb
+# Linux: AppImage + .deb
 npm run build:all && npx electron-builder --linux
 ```
+
+### Releases
+
+Every push to `main` builds all three platforms in CI and publishes a GitHub release. The release tag comes from the `version` in `package.json`; bump it for each real release so the tag, installer and in-app version all match. A repeat of an existing version gets a `-build.N` suffix.
 
 ---
 
 ## 🧩 How It Works
 
-1. **Add a tunnel** — Enter hostname, username, and password (encrypted at rest via OS-level crypto)
-2. **Click connect** — The app spawns `cloudflared access tcp --hostname <host> --url localhost:<port>`
-3. **Tunnel ready** — Once `cloudflared` prints the "ready" signal, the in-app RDP viewer starts
-4. **RDP negotiation** — The C++ addon connects via FreeRDP 3 with NLA (HYBRID) security, TLS encryption
-5. **Frame rendering** — FreeRDP decodes GDI frames into raw RGBA buffers, streamed to a React `<canvas>` via IPC
-6. **Interaction** — Keyboard & mouse events are forwarded back through the tunnel to the RDP server
-7. **Dynamic resize** — `ResizeObserver` tracks viewport changes; the canvas adjusts in real-time
-8. **Fullscreen** — Native Fullscreen API hides all OS chrome; toolbar stays accessible on hover
-9. **Disconnect** — Click the **← Back** button to tear down the RDP session (the tunnel stays up until you disconnect it from the tunnel list). <kbd>Esc</kbd> is *not* a disconnect key — it's forwarded to the remote desktop, or exits fullscreen when fullscreen
-
-### Toolbar Behavior (Fullscreen)
-
-| State | Appearance |
-|---|---|
-| **Idle** | Opacity `0.15` — nearly invisible, no distraction |
-| **Hover** | Opacity `1.0` — full controls visible |
-| **Interaction** | Buttons for disconnect, native client launch, minimize |
+1. **Add a tunnel**: enter hostname, username and password (encrypted at rest via OS-level crypto)
+2. **Click connect**: the app spawns `cloudflared access tcp --hostname <host> --url localhost:<port>`
+3. **Tunnel ready**: once `cloudflared` prints the "ready" signal, the in-app RDP viewer starts
+4. **RDP negotiation**: the C++ addon connects via FreeRDP with NLA (HYBRID) security and TLS encryption, on a worker thread so the UI never blocks
+5. **Frame rendering**: FreeRDP decodes into a GDI buffer; changed regions are merged and sent as RGBA to a React `<canvas>` over IPC
+6. **Interaction**: keyboard and mouse events are forwarded through the tunnel to the RDP server
+7. **Fullscreen**: the native Fullscreen API hides all OS chrome; the toolbar stays reachable on hover
+8. **Disconnect**: the toolbar **Disconnect** button tears down the RDP session and the tunnel. <kbd>Esc</kbd> is not a disconnect key: it is forwarded to the remote desktop, or exits fullscreen
 
 ---
 
@@ -187,54 +220,56 @@ npm run build:all && npx electron-builder --linux
 
 | Measure | Detail |
 |---|---|
-| **Password storage** | Encrypted with Electron `safeStorage` — uses DPAPI (Windows), Keychain (macOS), or libsecret (Linux) |
-| **No disk plaintext** | Passwords are decrypted in-memory only at connection time |
-| **No shell injection** | All processes spawned with `argv` arrays, never shell strings |
+| **Password storage** | Encrypted with Electron `safeStorage`: DPAPI (Windows), Keychain (macOS) or libsecret (Linux) |
+| **No disk plaintext** | Passwords are decrypted in memory only at connection time |
+| **No shell injection** | All processes are spawned with `argv` arrays, never shell strings |
 | **Hostname validation** | Strict regex before any connection attempt |
-| **Electron hardening** | `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true` |
+| **Electron hardening** | `contextIsolation: true`, `nodeIntegration: false` |
 | **No credential logging** | Passwords are never written to log files or console output |
 
 ---
 
 ## 🛠 Development
 
-### Build From Scratch
+### Notes on the renderer
 
-```sh
-git clone https://github.com/RandomKid24/cloudflareRDB-gui.git
-cd cloudflareRDB-gui
-npm install
-npm run build:all
-npm run dev
-```
+- UI components live in `src/renderer/components/ui/` (vendored [befui](https://befui.vercel.app/): Radix + CVA + Tailwind v4). Import them as `@/components/ui/<name>`.
+- Theming is in `src/renderer/hooks/useTheme.ts`. The `dark` class on `<html>` drives befui's `dark:` variant; the remote desktop view stays dark in light mode.
+- `vite.config.mts` must keep its `.mts` extension because `@tailwindcss/vite` is ESM-only.
 
-### RDP Session Resolution
+### RDP session resolution
 
-The app auto-detects the available viewport space using `ResizeObserver` on the RDP container element. The toolbar height is subtracted from the available area so the canvas fills exactly the space below the toolbar. Resolution is capped at 2560×1440.
+The app measures the RDP container with `ResizeObserver` and subtracts the toolbar height so the canvas fills the space below it. The remote is requested at window size (CSS pixels), clamped to 640×480 … 3840×2160, and drawn with smooth scaling on high-DPI screens. When the server reports a resolution change through FreeRDP's `DesktopResize` callback, the canvas and GDI buffer are resized to match.
 
-When the server reports a resolution change via FreeRDP's `DesktopResize` callback, the canvas buffer is updated in real-time and the render loop re-targets the new dimensions.
+### Tuning and debugging the RDP engine
 
-### macOS: Code Signing Workarounds
+| Variable | Effect |
+|---|---|
+| `TG_RDP_TRACE=1` | Full packet-level FreeRDP logging (large log files; off by default) |
+| `TG_RDP_GFX=1` | Opt in to the FreeRDP graphics pipeline (H.264). Experimental, off by default |
+| `TG_RDP_HIDPI=1` | Ask Windows to scale its UI to your display scale. Experimental, off by default |
 
-#### "App is damaged" Gatekeeper Fix
+### macOS code signing workarounds
 
-After downloading TunnelGate on macOS, Gatekeeper may strip the quarantine attribute:
+#### "App is damaged" Gatekeeper fix
+
+After downloading TunnelGate on macOS, Gatekeeper may mark the app as damaged:
 
 ```sh
 xattr -cr /Applications/TunnelGate.app
 ```
 
-This removes the `com.apple.quarantine` extended attribute that macOS sets on downloaded apps, allowing the app to launch without the "damaged" warning.
+This removes the `com.apple.quarantine` attribute macOS sets on downloaded apps.
 
-#### Build Without Signing
+#### Build without signing
 
 ```sh
 CSC_IDENTITY_AUTO_DISCOVERY=false npm run build:all && npx electron-builder --mac --dir
 ```
 
-#### Electron Framework Corruption (macOS 26+ "Tahoe")
+#### Electron Framework corruption (macOS 26+ "Tahoe")
 
-On macOS 26 (Tahoe) and later, `electron-builder`'s built-in ad-hoc code signing process corrupts the `Electron Framework` binary during packaging. The workaround is to replace the Framework binary from the pristine `node_modules/electron/dist` copy and re-sign:
+On macOS 26 and later, `electron-builder`'s built-in ad-hoc signing corrupts the `Electron Framework` binary during packaging. `build/afterPack.mac.js` handles signing instead, so do not enable `electron-builder`'s native signing. To repair a bundle by hand, replace the Framework binary from `node_modules/electron/dist` and re-sign:
 
 ```bash
 # 1. Replace the corrupted Framework binary with the original
@@ -247,25 +282,23 @@ codesign --deep --force --sign - --options runtime \
    release/mac-arm64/TunnelGate.app
 ```
 
-**Why this happens**: `electron-builder` re-codesigns all binaries inside the app bundle during packaging. On macOS 26+, the ad-hoc signing process (`--sign -`) corrupts the Framework's internal code signature hash, rendering the binary unloadable. Copying the untouched binary from `node_modules` restores the original, and the explicit `codesign` pass reapplies signatures correctly.
+### Windows: OpenSSL legacy provider
 
-### Windows: OpenSSL Legacy Provider
+On Windows, FreeRDP 3 requires the OpenSSL **legacy provider** for RC4 during the RDP licensing handshake. The C++ addon and `bootstrap.ts` automatically:
 
-On Windows, FreeRDP 3 requires the OpenSSL **legacy provider** for RC4 during the RDP licensing handshake. The C++ addon automatically:
+1. Write a minimal `openssl.cnf` at runtime
+2. Set `OPENSSL_MODULES` and `OPENSSL_CONF` before the addon loads
+3. Load the `legacy` + `default` providers before any connection
 
-1. Writes a minimal `openssl.cnf` config file at runtime
-2. Sets `OPENSSL_MODULES` and `OPENSSL_CONF` environment variables via `_putenv_s` at DLL load time (inside a global `EnvVarInitializer`)
-3. Loads the `legacy` + `default` providers via `OSSL_PROVIDER_load()` before any connection
-
-The legacy DLL (`legacy.dll`) is deployed alongside the addon in the `ossl-modules/` subdirectory during the build step.
+`legacy.dll` is deployed alongside the addon in the `ossl-modules/` subdirectory during the build step.
 
 #### Prebuilt Windows DLLs
 
-CI-compiled FreeRDP DLLs crash inside `gdi_init_ex` due to MSVC environment differences. To guarantee a working build, the known-good Windows DLLs are committed to `prebuilt/windows-x64/` in the repo. `build-native.js` copies from there automatically — no manual step required.
+CI-compiled FreeRDP DLLs crash inside `gdi_init_ex` because of MSVC environment differences. The known-good Windows DLLs are committed to `prebuilt/windows-x64/`, and `build-native.js` copies them automatically.
 
-> **Updating DLLs:** Build locally on Windows, verify RDP works, then copy `native/rdp-addon/build/Release/*.dll` (and `ossl-modules/`) into `prebuilt/windows-x64/` and commit.
+> **Updating DLLs:** build locally on Windows, verify RDP works, then copy `native/rdp-addon/build/Release/*.dll` (and `ossl-modules/`) into `prebuilt/windows-x64/` and commit.
 
-See [`docs/TUNNELGATE_COMPLETE.md`](docs/TUNNELGATE_COMPLETE.md) for the full deep-dive on all 17 bugs resolved during development.
+See [`docs/TUNNELGATE_COMPLETE.md`](docs/TUNNELGATE_COMPLETE.md) for the full deep-dive on the bugs resolved during development.
 
 ---
 
@@ -274,35 +307,27 @@ See [`docs/TUNNELGATE_COMPLETE.md`](docs/TUNNELGATE_COMPLETE.md) for the full de
 ```
 prebuilt/
 └── windows-x64/           # Known-working Windows FreeRDP DLLs (committed)
-    ├── freerdp3.dll        # Core FreeRDP runtime
-    ├── winpr3.dll
-    ├── libcrypto-3-x64.dll / libssl-3-x64.dll
-    ├── legacy.dll + ossl-modules/legacy.dll   # OpenSSL legacy provider
-    ├── msvcp140.dll / vcruntime140*.dll       # MSVC runtimes
-    └── openssl.cnf
 src/
 ├── main/                  # Electron main process
-│   ├── bootstrap.ts       # FIRST import — sets PATH & env vars before addon loads
+│   ├── bootstrap.ts       # FIRST import: sets PATH & env vars before the addon loads
 │   ├── ipcHandlers.ts     # IPC channel registration
-│   ├── rdpViewManager.ts  # Addon bridge, lastDimensions map, error interception
+│   ├── rdpViewManager.ts  # Addon bridge, clipboard bridge, Mac shortcut forwarding
 │   ├── tunnelManager.ts   # cloudflared spawn/kill lifecycle
 │   ├── credentialStore.ts # safeStorage encrypt/decrypt wrapper
 │   └── store.ts           # electron-store persistence
 ├── renderer/              # React frontend (Vite)
-│   ├── App.tsx            # Root component with RDP view wrapper
-│   ├── views/
-│   │   └── RdpView.tsx    # ResizeObserver, fullscreen, toolbar, Esc→fullscreen-exit
-│   └── components/
-│       └── RdpCanvas.tsx  # Canvas rendering, rAF paint loop, mouse input
-├── preload/               # Context bridge (exposes IPC to renderer)
-├── native/                # C++ FreeRDP 3 addon
-│   └── rdp-addon/
-│       ├── rdp_session.h / .cpp   # connect, callbacks, frame encoding
-│       └── rdp_module.cpp         # N-API module entry point
-├── shared/                # Shared TypeScript types & interfaces
+│   ├── App.tsx            # Root component
+│   ├── views/             # Servers, Tunnels, Logs, Settings, RdpView, Login
+│   ├── components/        # RdpCanvas, ErrorBoundary, ThemeMenu, BrandMark, ui/ (befui)
+│   └── hooks/             # useTheme, useLogs, ...
+├── preload/               # Context bridge (exposes IPC to the renderer)
+├── native/rdp-addon/      # C++ FreeRDP addon (cmake-js, N-API)
+│   ├── rdp_session.h/.cpp # connect, pump loop, GDI updates, clipboard
+│   └── rdp_module.cpp     # N-API entry point, async connect/disconnect
+└── shared/                # Shared TypeScript types
 scripts/
-├── build-native.js    # cmake-js builder, auto-detects VS via vcvarsall, copies prebuilt DLLs
-└── generate-icons.ps1 # Icon generation from source PNG
+├── build-native.js        # cmake-js builder, copies prebuilt DLLs / dylibs
+└── fetch-cloudflared.js   # downloads the pinned, checksummed cloudflared
 ```
 
 ---
@@ -311,27 +336,27 @@ scripts/
 
 | Doc | Description |
 |---|---|
-| [`docs/RDP_NATIVE_ADDON.md`](docs/RDP_NATIVE_ADDON.md) | Full C++ addon architecture, FreeRDP 3 API usage, GDI rendering pipeline, 10 bugs |
-| [`docs/TUNNELGATE_COMPLETE.md`](docs/TUNNELGATE_COMPLETE.md) | Complete project reference — all components, IPC flow, error codes, CI/CD |
-| [`docs/REPLICATE_FROM_SCRATCH.md`](docs/REPLICATE_FROM_SCRATCH.md) | Standalone replication guide — build from zero, all 17 bugs with file:line and before/after |
+| [`docs/RDP_NATIVE_ADDON.md`](docs/RDP_NATIVE_ADDON.md) | C++ addon architecture, FreeRDP API usage, rendering pipeline, clipboard wiring, known bugs |
+| [`docs/TUNNELGATE_COMPLETE.md`](docs/TUNNELGATE_COMPLETE.md) | Complete project reference: components, IPC flow, error codes, CI/CD |
+| [`docs/REPLICATE_FROM_SCRATCH.md`](docs/REPLICATE_FROM_SCRATCH.md) | Standalone guide to rebuild the project from zero |
 
 ---
 
 ## 🤝 Contributing
 
-PRs are welcome! If you find a bug or have a feature request, [open an issue](https://github.com/RandomKid24/cloudflareRDB-gui/issues).
+PRs are welcome. If you find a bug or have a feature request, [open an issue](https://github.com/RandomKid24/tunnelgate/issues).
 
 **Before submitting a PR:**
 
-1. Run `npm run build` to ensure TypeScript and Vite compile
+1. Run `npm run build` and the three `tsc --noEmit` commands above
 2. Test on your target platform
-3. Update docs if your change affects the user interface or build process
+3. Update docs if your change affects the interface or the build process
 
 ---
 
 ## 📄 License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
 
 ---
 

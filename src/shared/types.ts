@@ -98,6 +98,7 @@ export const IPC_CHANNELS = {
   AUTH_LOGOUT: 'auth:logout',
   AUTH_GET_SESSION: 'auth:get-session',
   WIFI_GET_STATUS: 'wifi:get-status',
+  WIFI_OPEN_LOCATION_SETTINGS: 'wifi:open-location-settings',
 } as const;
 
 export interface WifiStatusResult {

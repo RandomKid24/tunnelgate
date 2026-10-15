@@ -1,6 +1,7 @@
 #include <napi.h>
 #include <map>
 #include <mutex>
+#include <thread>
 #include "rdp_session.h"
 
 class JsFrameListener;
@@ -118,6 +119,47 @@ private:
   Napi::ThreadSafeFunction clipboardCb_;
 };
 
+// Runs the blocking freerdp_connect off the main thread; resolves with the session id.
+class ConnectWorker : public Napi::AsyncWorker {
+public:
+  ConnectWorker(Napi::Env env, RdpSession* session, JsFrameListener* listener)
+    : Napi::AsyncWorker(env), deferred_(Napi::Promise::Deferred::New(env)),
+      session_(session), listener_(listener) {}
+
+  Napi::Promise Promise() { return deferred_.Promise(); }
+
+  void Execute() override { ok_ = session_->connect(); }
+
+  void OnOK() override {
+    Napi::Env env = Env();
+    if (!ok_) {
+      std::string err = session_->lastError().empty()
+        ? "Failed to connect RDP session" : session_->lastError();
+      UINT32 code = session_->lastErrorCode();
+      delete session_;
+      delete listener_;
+      auto jsErr = Napi::Error::New(env, err);
+      jsErr.Set("freerdpCode", Napi::Number::New(env, code));
+      deferred_.Reject(jsErr.Value());
+      return;
+    }
+    int id = nextId_++;
+    {
+      std::lock_guard<std::mutex> lock(sessionsMutex_);
+      sessions_[id] = { session_, listener_ };
+    }
+    deferred_.Resolve(Napi::Number::New(env, id));
+  }
+
+  void OnError(const Napi::Error& e) override { deferred_.Reject(e.Value()); }
+
+private:
+  Napi::Promise::Deferred deferred_;
+  RdpSession* session_;
+  JsFrameListener* listener_;
+  bool ok_ = false;
+};
+
 static Napi::Value CreateSession(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
 
@@ -153,28 +195,12 @@ static Napi::Value CreateSession(const Napi::CallbackInfo& info) {
 
   auto session = new RdpSession(
     host, port, width, height, username, password, listener, serverHostname);
+  if (info.Length() > 9 && info[9].IsNumber()) session->setScalePercent(info[9].As<Napi::Number>().Int32Value());
 
-  bool ok = session->connect();
-  if (!ok) {
-    std::string err = session->lastError().empty()
-      ? "Failed to connect RDP session"
-      : session->lastError();
-    UINT32 code = session->lastErrorCode();
-    delete session;
-    delete listener;
-    auto jsErr = Napi::Error::New(env, err);
-    jsErr.Set("freerdpCode", Napi::Number::New(env, code));
-    jsErr.ThrowAsJavaScriptException();
-    return env.Null();
-  }
-
-  int id = nextId_++;
-  {
-    std::lock_guard<std::mutex> lock(sessionsMutex_);
-    sessions_[id] = { session, listener };
-  }
-
-  return Napi::Number::New(env, id);
+  auto worker = new ConnectWorker(env, session, listener);
+  auto promise = worker->Promise();
+  worker->Queue();
+  return promise;
 }
 
 static Napi::Value DestroySession(const Napi::CallbackInfo& info) {
@@ -185,12 +211,22 @@ static Napi::Value DestroySession(const Napi::CallbackInfo& info) {
   }
 
   int id = info[0].As<Napi::Number>().Int32Value();
-  std::lock_guard<std::mutex> lock(sessionsMutex_);
-  auto it = sessions_.find(id);
-  if (it != sessions_.end()) {
-    delete it->second.session;
-    delete it->second.listener;
-    sessions_.erase(it);
+  SessionHolder holder{nullptr, nullptr};
+  {
+    std::lock_guard<std::mutex> lock(sessionsMutex_);
+    auto it = sessions_.find(id);
+    if (it != sessions_.end()) {
+      holder = it->second;
+      sessions_.erase(it);
+    }
+  }
+  if (holder.session) {
+    // freerdp_disconnect + pump join can block on the network; keep it off the
+    // main thread so the UI returns immediately.
+    std::thread([holder]() {
+      delete holder.session;
+      delete holder.listener;
+    }).detach();
   }
   return env.Undefined();
 }

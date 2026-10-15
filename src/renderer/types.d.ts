@@ -16,6 +16,7 @@ declare global {
       };
       wifi: {
         getStatus: (bypassCache?: boolean) => Promise<WifiStatusResult>;
+        openLocationSettings: () => Promise<void>;
       };
       servers: {
         list: () => Promise<ServerList>;

@@ -67,7 +67,9 @@ export function WifiStatusBar() {
     ? `Wi-Fi verification: ${wifiStatus.error}`
     : isOk
       ? `Connected to authorized Wi-Fi: ${wifiStatus?.ssid}`
-      : 'Click refresh to re-verify Wi-Fi status';
+      : isPermDenied
+        ? 'Turn on TunnelGate under Location Services, then click refresh'
+        : 'Click refresh to re-verify Wi-Fi status';
 
   return (
     <div className="inline-flex items-center gap-1">
@@ -80,6 +82,15 @@ export function WifiStatusBar() {
           </Badge>
         </span>
       </Tooltip>
+      {isPermDenied && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.cloudflareRdp.wifi.openLocationSettings().catch(() => undefined)}
+        >
+          Open Settings
+        </Button>
+      )}
       <Tooltip
         content={
           lastChecked ? `Last checked: ${lastChecked.toLocaleTimeString()}` : 'Re-check Wi-Fi status'

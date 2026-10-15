@@ -1,6 +1,6 @@
 {
   "name": "tunnelgate",
-  "version": "2.1.2",
+  "version": "2.2.0",
   "description": "One-Click RDP via Cloudflare Tunnel",
   "author": {
     "name": "TunnelGate",

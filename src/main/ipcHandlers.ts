@@ -12,7 +12,7 @@ import { detectWifi } from './wifiDetector';
 
 const isWin = process.platform === 'win32';
 
-const GH_REPO = 'RandomKid24/cloudflareRDB-gui';
+const GH_REPO = 'RandomKid24/tunnelgate';
 
 function fetchLatestRelease(): Promise<{ tag_name: string; html_url: string } | null> {
   return new Promise((resolve) => {
@@ -271,6 +271,12 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
   ipcMain.handle(IPC_CHANNELS.AUTH_GET_SESSION, async (): Promise<HrmsSession | null> => {
     const session = getAuthSession();
     return session ? toPublicSession(session) : null;
+  });
+
+  // Deep-links straight to System Settings → Privacy & Security → Location Services.
+  ipcMain.handle(IPC_CHANNELS.WIFI_OPEN_LOCATION_SETTINGS, async () => {
+    if (process.platform !== 'darwin') return;
+    await shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices');
   });
 
   ipcMain.handle(IPC_CHANNELS.WIFI_GET_STATUS, async (_event, bypassCache?: boolean): Promise<WifiStatusResult> => {

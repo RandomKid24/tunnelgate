@@ -242,7 +242,10 @@ on the FreeRDP 2 line the feature is a no-op.
 2. New `instance->PreConnect` callback (`preConnectCallback`) calls
    `freerdp_client_load_addins(context->channels, context->settings)` — FreeRDP
    core never loads addins from the settings arrays on its own; the client is
-   responsible. It then subscribes to the `ChannelConnected` / `ChannelDisconnected`
+   responsible. On macOS it first calls `freerdp_register_addin_provider(freerdp_channels_load_static_addin_entry, 0)`:
+   the Homebrew build links channels statically, and only `freerdp_client_context_new()` registers that
+   provider — we use plain `freerdp_new()`, so without it `load_addins` fails ("Failed to load channel rdpdr")
+   and clipboard is dead. On macOS this load must happen in the `instance->LoadChannels` hook, not `PreConnect`: FreeRDP 3 frees and recreates the channel table right after PreConnect (`utils_reload_channels`), discarding anything loaded earlier. It then subscribes to the `ChannelConnected` / `ChannelDisconnected`
    PubSub events.
 3. `onChannelConnected` matches `CLIPRDR_SVC_CHANNEL_NAME`, casts
    `e->pInterface` to `CliprdrClientContext*`, sets `custom = this` and the six

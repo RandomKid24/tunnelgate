@@ -1,4 +1,4 @@
-import { BrowserWindow, app, clipboard } from 'electron';
+import { BrowserWindow, app, clipboard, screen } from 'electron';
 import path from 'path';
 const isWin = process.platform === 'win32';
 const isLinux = process.platform === 'linux';
@@ -13,7 +13,8 @@ interface RdpAddon {
     serverHostname: string,
     onBitmap: (x: number, y: number, w: number, h: number, buf: Buffer) => void,
     onEvent: (type: string, ...args: any[]) => void,
-  ): number;
+    scalePercent?: number,
+  ): Promise<number>;
   destroySession(id: number): void;
   sendPointerEvent(id: number, flags: number, x: number, y: number): void;
   sendKeyboardEvent(id: number, flags: number, code: number): void;
@@ -25,6 +26,11 @@ interface RdpAddon {
 // keeps a pathological local clipboard from being shovelled over the channel.
 const MAX_CLIPBOARD_BYTES = 256 * 1024;
 const CLIPBOARD_POLL_MS = 500;
+
+// Scancodes for the Cmd+<letter> shortcuts forwarded to the remote as Ctrl+<letter>.
+const MAC_SHORTCUT_SCANCODES: Record<string, number> = {
+  KeyA: 0x1e, KeyC: 0x2e, KeyV: 0x2f, KeyX: 0x2d, KeyZ: 0x2c, KeyY: 0x15, KeyF: 0x21, KeyS: 0x1f,
+};
 
 type RdpEventCallback = (tunnelId: string, event: string, ...args: any[]) => void;
 
@@ -40,6 +46,9 @@ const RETRY_DELAY_MS = 1500;
 export class RdpViewManager {
   private addon: RdpAddon | null = null;
   private sessions = new Map<string, number>();
+  // Tunnels whose (async) connect is in flight, and those disconnected meanwhile.
+  private connecting = new Set<string>();
+  private cancelled = new Set<string>();
   private addonAvailable = false;
   private addonLoadError = '';
   private win: BrowserWindow | null = null;
@@ -105,6 +114,20 @@ export class RdpViewManager {
 
   setWindow(win: BrowserWindow | null) {
     this.win = win;
+    // macOS routes Cmd+C/V/X/... to the app menu before the page sees the keydown, so the
+    // canvas never gets them. While an RDP session is open, send them to it as Ctrl+key
+    // (the renderer already maps Cmd -> Ctrl, so Ctrl is held down at this point).
+    if (win && process.platform === 'darwin') {
+      win.webContents.on('before-input-event', (event, input) => {
+        const code = MAC_SHORTCUT_SCANCODES[input.code];
+        if (!code || input.type !== 'keyDown' || !input.meta || input.alt || input.control) return;
+        const tunnelId = this.sessions.keys().next().value;
+        if (tunnelId === undefined) return;
+        event.preventDefault();
+        this.sendKeyboardEvent(tunnelId, 0, code);
+        this.sendKeyboardEvent(tunnelId, 0x8000, code);
+      });
+    }
   }
 
   setEventCallback(cb: RdpEventCallback) {
@@ -150,7 +173,7 @@ export class RdpViewManager {
     process.env.WLOG_APPENDER = 'file';
     process.env.WLOG_FILEAPPENDER_OUTPUT_FILE_PATH = userDataPath;
     process.env.WLOG_FILEAPPENDER_OUTPUT_FILE_NAME = logFilename;
-    process.env.WLOG_LEVEL = 'DEBUG';
+    process.env.WLOG_LEVEL = process.env.TG_RDP_TRACE ? 'DEBUG' : 'WARN';
 
     const startTime = Date.now();
 
@@ -163,7 +186,16 @@ export class RdpViewManager {
           height = stored?.height ?? DEFAULT_HEIGHT;
         }
 
-        const sessionId = this.addon.createSession(
+        // Opt-in (TG_RDP_HIDPI=1): ask Windows to scale its UI to the display scale. Off by
+        // default because it produced garbled/misplaced regions in testing.
+        const scalePercent = process.env.TG_RDP_HIDPI && this.win && !this.win.isDestroyed()
+          ? Math.round(screen.getDisplayMatching(this.win.getBounds()).scaleFactor * 100)
+          : 100;
+        this.connecting.add(tunnelId);
+        this.cancelled.delete(tunnelId);
+        let sessionId: number;
+        try {
+          sessionId = await this.addon.createSession(
           targetHost, port, width, height, username, password, serverHostname ?? targetHost,
           (x, y, w, h, buf) => {
             this.forwardFrame(tunnelId, x, y, w, h, buf);
@@ -171,7 +203,17 @@ export class RdpViewManager {
           (type, ...args) => {
             this.handleEvent(tunnelId, type, args);
           },
-        );
+          scalePercent,
+          );
+        } finally {
+          this.connecting.delete(tunnelId);
+        }
+
+        if (this.cancelled.delete(tunnelId)) {
+          // Disconnect was requested while the handshake was still running.
+          this.addon.destroySession(sessionId);
+          return false;
+        }
 
         this.lastDimensions.set(tunnelId, { width, height });
         this.sessions.set(tunnelId, sessionId);
@@ -215,7 +257,10 @@ export class RdpViewManager {
 
   disconnectView(tunnelId: string) {
     const sessionId = this.sessions.get(tunnelId);
-    if (sessionId === undefined) return;
+    if (sessionId === undefined) {
+      if (this.connecting.has(tunnelId)) this.cancelled.add(tunnelId);
+      return;
+    }
 
     try {
       this.addon?.destroySession(sessionId);

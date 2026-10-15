@@ -29,8 +29,9 @@ export function Logs({ tunnels, initialTunnelId, onClearFilter }: Props) {
   const isFiltered = Boolean(filterTunnelId);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden pt-4 sm:pt-6">
       <PageHeader
+        className="px-4 sm:px-6"
         title="Logs"
         description={isFiltered ? `Filtered — ${filteredLogs.length} entries` : `All tunnels — ${logs.length} entries`}
       />

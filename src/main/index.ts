@@ -51,7 +51,7 @@ function createMainWindow(): void {
     minWidth: 900,
     minHeight: 600,
     title: 'TunnelGate',
-    icon: path.join(__dirname, '../../resources/icons/icon.ico'),
+    icon: path.join(__dirname, '../../resources/icons', process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
     show: !getSettings().startMinimizedToTray,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),

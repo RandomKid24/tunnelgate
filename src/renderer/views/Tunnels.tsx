@@ -1,9 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import ReactDOM from 'react-dom';
+import React, { useMemo, useState } from 'react';
 import { TunnelCard } from '../components/TunnelCard';
 import { TunnelForm } from '../components/TunnelForm';
-import { WifiStatusBar } from '../components/WifiStatusBar';
 import { TunnelWithState } from '../hooks/useTunnels';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { PlusIcon } from '@/components/ui/icons';
+import { Loader } from '@/components/ui/loader';
+import { SearchInput } from '@/components/ui/search-input';
+import { PageHeader } from '@/components/ui/app-shell';
 
 const ACTIVE_STATUSES = new Set(['connected', 'connecting', 'reconnecting']);
 
@@ -21,102 +27,30 @@ interface Props {
   isSuperuser: boolean;
 }
 
-function TunnelModal({
+function TunnelDialog({
   tunnel,
   onSubmit,
-  onCancel,
+  onClose,
 }: {
   tunnel: TunnelWithState | null;
   onSubmit: (data: { name: string; hostname: string; port: number; username: string; password: string; rememberAfterSession: boolean }) => void;
-  onCancel: () => void;
+  onClose: () => void;
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onCancel]);
-
-  return ReactDOM.createPortal(
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'var(--overlay-bg)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 99999,
-        animation: 'fade-in 0.15s ease-out',
-      }}
-      onClick={onCancel}
-    >
-      <div
-        style={{
-          position: 'relative',
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-color)',
-          borderRadius: 'var(--radius-lg)',
-          padding: 20,
-          width: '90%',
-          maxWidth: 500,
-          maxHeight: '92vh',
-          overflowY: 'auto',
-          boxShadow: 'var(--shadow-modal)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          onClick={onCancel}
-          aria-label="Close"
-          style={{
-            position: 'absolute',
-            top: 16,
-            right: 16,
-            width: 28,
-            height: 28,
-            border: 'none',
-            background: 'transparent',
-            color: 'var(--text-muted)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: 'var(--radius-xs)',
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-        <TunnelForm tunnel={tunnel ?? undefined} onSubmit={onSubmit} onCancel={onCancel} />
-      </div>
-    </div>,
-    document.body,
+  return (
+    <Dialog open onOpenChange={(open) => (!open ? onClose() : undefined)}>
+      <DialogContent className="max-h-[92vh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto">
+        <TunnelForm tunnel={tunnel ?? undefined} onSubmit={onSubmit} onCancel={onClose} />
+      </DialogContent>
+    </Dialog>
   );
 }
 
 function ChecklistItem({ text }: { text: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-      <span
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: '50%',
-          background: 'var(--text-muted)',
-          flexShrink: 0,
-          marginTop: 6,
-        }}
-      />
-      <span style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{text}</span>
-    </div>
+    <li className="flex items-start gap-2.5">
+      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-muted-foreground" />
+      <span className="text-[13px] leading-relaxed text-muted-foreground">{text}</span>
+    </li>
   );
 }
 
@@ -144,49 +78,6 @@ export function Tunnels({ tunnels, loading, errors, onAdd, onUpdate, onDelete, o
     });
   }, [tunnels, search]);
 
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
-        Loading...
-      </div>
-    );
-  }
-
-  if (tunnels.length === 0 && !showForm) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 24, padding: 24 }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Add your first server</div>
-          <div style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 380, lineHeight: 1.5 }}>
-            You'll need three things from your office IT or Cloudflare Zero Trust dashboard first.
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', maxWidth: 360 }}>
-          <ChecklistItem text="The server's Cloudflare Tunnel hostname (not its IP address)" />
-          <ChecklistItem text="Its Windows username, e.g. CORP\yourname" />
-          <ChecklistItem text="Its Windows password" />
-        </div>
-
-        <button
-          onClick={() => setShowForm(true)}
-          style={{
-            padding: '10px 24px',
-            fontSize: 14,
-            fontWeight: 600,
-            border: 'none',
-            borderRadius: 'var(--radius-md)',
-            background: 'var(--accent-blue)',
-            color: '#fff',
-            cursor: 'pointer',
-          }}
-        >
-          Add Your First Tunnel
-        </button>
-      </div>
-    );
-  }
-
   const handleFormSubmit = (data: { name: string; hostname: string; port: number; username: string; password: string; rememberAfterSession: boolean }) => {
     if (editingTunnel) {
       onUpdate({ ...editingTunnel, ...data });
@@ -202,104 +93,100 @@ export function Tunnels({ tunnels, loading, errors, onAdd, onUpdate, onDelete, o
     setShowForm(true);
   };
 
-  return (
-    <div style={{ padding: 24, height: '100%', overflowY: 'auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Tunnels</h1>
-          {connectedCount > 0 && (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                fontSize: 12,
-                fontWeight: 600,
-                color: 'var(--accent-green)',
-                background: 'rgba(34,197,94,0.1)',
-                padding: '3px 8px',
-                borderRadius: 'var(--radius-full)',
-              }}
-            >
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-green)' }} />
-              {connectedCount} connected
-            </span>
-          )}
-          <WifiStatusBar />
-        </div>
-        {!showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            style={{
-              padding: '10px 18px',
-              fontSize: 13,
-              fontWeight: 600,
-              border: 'none',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--accent-blue)',
-              color: '#fff',
-              cursor: 'pointer',
-              flexShrink: 0,
-            }}
-          >
-            + Add Tunnel
-          </button>
-        )}
-      </div>
+  const openAdd = () => {
+    setEditingTunnel(null);
+    setShowForm(true);
+  };
 
-      {tunnels.length > 4 && !showForm && (
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name or hostname..."
-          className="tg-input"
-          style={{
-            width: '100%',
-            marginBottom: 16,
-            padding: '8px 12px',
-            fontSize: 13,
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: 'var(--radius-sm)',
-            color: 'var(--text-primary)',
-            outline: 'none',
-            boxSizing: 'border-box',
+  return (
+    <>
+      <PageHeader
+        title="Tunnels"
+        description="Manually added Cloudflare tunnels on this device."
+        actions={
+          !showForm ? (
+            <Button onClick={openAdd}>
+              <PlusIcon /> Add Tunnel
+            </Button>
+          ) : undefined
+        }
+      />
+
+      {(connectedCount > 0 || (tunnels.length > 4 && !showForm)) && (
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          {connectedCount > 0 && (
+            <Badge variant="success" dot>
+              {connectedCount} connected
+            </Badge>
+          )}
+          {tunnels.length > 4 && !showForm && (
+            <SearchInput
+              value={search}
+              onValueChange={setSearch}
+              placeholder="Search by name or hostname…"
+              className="w-full max-w-sm"
+            />
+          )}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="grid place-items-center py-20">
+          <Loader variant="ring" size="lg" label="Loading tunnels" />
+        </div>
+      ) : tunnels.length === 0 && !showForm ? (
+        <div className="grid place-items-center py-6">
+          <Card className="w-full max-w-lg p-6">
+            <div className="grid gap-1 text-center">
+              <h2 className="text-base font-semibold">Add your first server</h2>
+              <p className="text-[13px] leading-relaxed text-muted-foreground">
+                You'll need three things from your office IT or Cloudflare Zero Trust dashboard first.
+              </p>
+            </div>
+            <ul className="mt-5 grid gap-2.5">
+              <ChecklistItem text="The server's Cloudflare Tunnel hostname (not its IP address)" />
+              <ChecklistItem text="Its Windows username, e.g. CORP\yourname" />
+              <ChecklistItem text="Its Windows password" />
+            </ul>
+            <Button className="mt-6 w-full" onClick={openAdd}>
+              <PlusIcon /> Add Your First Tunnel
+            </Button>
+          </Card>
+        </div>
+      ) : (
+        <>
+          {visibleTunnels.length === 0 && (
+            <p className="py-10 text-center text-[13px] text-muted-foreground">No tunnels match "{search}"</p>
+          )}
+          <div className="grid gap-3">
+            {visibleTunnels.map((tunnel) => (
+              <TunnelCard
+                key={tunnel.id}
+                tunnel={tunnel}
+                onConnect={onConnect}
+                onDisconnect={onDisconnect}
+                onEdit={handleEdit}
+                onDelete={onDelete}
+                onViewScreen={() => onViewScreen(tunnel)}
+                onViewLogs={() => onViewLogs(tunnel.id)}
+                connectError={errors[tunnel.id]}
+                canEdit={isSuperuser}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {showForm && (
+        <TunnelDialog
+          tunnel={editingTunnel}
+          onSubmit={handleFormSubmit}
+          onClose={() => {
+            setShowForm(false);
+            setEditingTunnel(null);
           }}
         />
       )}
-
-      {visibleTunnels.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', fontSize: 13 }}>
-          No tunnels match "{search}"
-        </div>
-      )}
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {visibleTunnels.map((tunnel) => (
-          <React.Fragment key={tunnel.id}>
-            <TunnelCard
-              tunnel={tunnel}
-              onConnect={onConnect}
-              onDisconnect={onDisconnect}
-              onEdit={handleEdit}
-              onDelete={onDelete}
-              onViewScreen={() => onViewScreen(tunnel)}
-              onViewLogs={() => onViewLogs(tunnel.id)}
-              connectError={errors[tunnel.id]}
-              canEdit={isSuperuser}
-            />
-          </React.Fragment>
-        ))}
-      </div>
-
-      {showForm && (
-        <TunnelModal
-          tunnel={editingTunnel}
-          onSubmit={handleFormSubmit}
-          onCancel={() => { setShowForm(false); setEditingTunnel(null); }}
-        />
-      )}
-    </div>
+    </>
   );
 }

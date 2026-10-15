@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { RdpCanvas } from '../components/RdpCanvas';
 import { TunnelConfig } from '../../shared/types';
 import { shortServerName, formatIpcError } from '../lib/format';
+import { Button } from '@/components/ui/button';
+import { XCircleIcon } from '@/components/ui/icons';
 
 interface Props {
   tunnel: (TunnelConfig & { runtime: { status: string } }) | null;
@@ -125,7 +127,6 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
           rawH = Math.max(480, Math.min(2160, rawH - Math.round(toolbarEl.offsetHeight * dpr)));
         }
         const snapped = getBestRdpSize(rawW, rawH);
-        console.log('Container measured:', rawW, rawH, 'dpr:', dpr, '→ RDP:', snapped.width, snapped.height);
         connectSizeRef.current = snapped;
         // Only update canvas dimensions before connect (after connect, keep RDP resolution)
         if (!connectedRef.current) {
@@ -393,13 +394,25 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
 
   if (!tunnel) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
+      <div
+        className="dark"
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}
+      >
         No tunnel selected
       </div>
     );
   }
 
-  const containerStyle: React.CSSProperties = { height: '100%', display: 'flex', flexDirection: 'column', background: '#000' };
+  // The remote desktop is a video surface: keep the viewer itself dark whatever the app theme.
+  // The `dark` class re-scopes the befui tokens for this subtree, so the toolbar, badges and
+  // buttons stay legible instead of flipping to light colours.
+  const containerStyle: React.CSSProperties = {
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    background: '#000',
+    colorScheme: 'dark',
+  };
 
   const toolbarStyle: React.CSSProperties = {
     display: 'flex',
@@ -413,7 +426,7 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
   };
 
   return (
-    <div ref={containerRef} style={containerStyle}>
+    <div ref={containerRef} className="dark" style={containerStyle}>
       <div ref={toolbarRef} style={toolbarStyle}>
         <button onClick={handleBack} style={toolbarBtnStyle}>← Back</button>
         <span style={{ fontWeight: 600 }}>{tunnel.name}</span>
@@ -462,6 +475,17 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
               </button>
             )}
           </>
+        )}
+        {(status === 'connected' || status === 'connecting') && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={handleBack}
+            title="Disconnect this session and return to the server list"
+          >
+            <XCircleIcon /> Disconnect
+          </Button>
         )}
       </div>
 

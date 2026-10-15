@@ -1,7 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { Toaster } from './components/ui/toast';
+import { initTheme } from './hooks/useTheme';
 import './index.css';
+
+// Apply the stored theme (light / dark / system) before the first paint so the window
+// never flashes the wrong colours. befui keys off the `dark` class on <html>.
+initTheme();
 
 const captureRendererException = (error: unknown): void => {
   void window.pq?.captureException(error).catch(() => undefined);
@@ -18,5 +24,6 @@ window.addEventListener('unhandledrejection', (event) => {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />
+    <Toaster />
   </React.StrictMode>
 );

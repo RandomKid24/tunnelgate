@@ -1,5 +1,10 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { LogEntry } from '../../shared/types';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { EmptyState } from '@/components/ui/empty-state';
+import { DownloadIcon, TrashIcon, SearchIcon } from '@/components/ui/icons';
 
 interface Props {
   logs: LogEntry[];
@@ -8,18 +13,18 @@ interface Props {
   filterTunnelId?: string;
 }
 
-const levelColors: Record<string, string> = {
-  info: 'var(--text-secondary)',
-  warn: 'var(--accent-amber)',
-  error: 'var(--accent-red)',
-  debug: 'var(--text-muted)',
+const levelTones: Record<string, 'default' | 'warning' | 'danger' | 'primary'> = {
+  info: 'default',
+  warn: 'warning',
+  error: 'danger',
+  debug: 'default',
 };
 
-const levelBadge: Record<string, { label: string; color: string; bg: string }> = {
-  error: { label: 'ERROR', color: '#fff', bg: 'rgba(239,68,68,0.7)' },
-  warn: { label: 'WARN', color: '#1a1a1a', bg: 'rgba(245,158,11,0.7)' },
-  info: { label: 'INFO', color: '#fff', bg: 'rgba(59,130,246,0.5)' },
-  debug: { label: 'DEBUG', color: 'var(--text-muted)', bg: 'transparent' },
+const levelLabels: Record<string, string> = {
+  info: 'INFO',
+  warn: 'WARN',
+  error: 'ERROR',
+  debug: 'DEBUG',
 };
 
 function formatTime(ts: string): string {
@@ -46,15 +51,11 @@ export function LogViewer({ logs, onExport, onClear, filterTunnelId }: Props) {
       result = result.filter((l) =>
         l.message.toLowerCase().includes(q) ||
         l.tunnelName.toLowerCase().includes(q) ||
-        l.level.toLowerCase().includes(q)
+        l.level.toLowerCase().includes(q),
       );
     }
     return result;
   }, [logs, filterTunnelId, search]);
-
-  const handleClear = () => {
-    onClear();
-  };
 
   useEffect(() => {
     if (autoScroll) {
@@ -71,130 +72,69 @@ export function LogViewer({ logs, onExport, onClear, filterTunnelId }: Props) {
     }
   };
 
+  const isFiltered = Boolean(filterTunnelId);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
-          Logs {filterTunnelId ? '(filtered)' : ''} — {filtered.length} entries
-        </span>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button
-            onClick={() => setAutoScroll(!autoScroll)}
-            title={autoScroll ? 'Disable auto-scroll' : 'Enable auto-scroll'}
-            style={{
-              padding: '2px 8px',
-              fontSize: 11,
-              border: `1px solid ${autoScroll ? 'var(--accent-blue)' : 'var(--border-color)'}`,
-              borderRadius: 'var(--radius-xs)',
-              background: autoScroll ? 'var(--accent-blue)' : 'transparent',
-              color: autoScroll ? '#fff' : 'var(--text-secondary)',
-              cursor: 'pointer',
-            }}
-          >
-            Auto {autoScroll ? 'ON' : 'OFF'}
-          </button>
-          <button
-            onClick={handleClear}
-            title="Clear visible logs"
-            style={{
-              padding: '2px 8px',
-              fontSize: 11,
-              border: '1px solid var(--border-color)',
-              borderRadius: 'var(--radius-xs)',
-              background: 'transparent',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-            }}
-          >
-            Clear
-          </button>
-          <button
-            onClick={onExport}
-            title="Export logs to file"
-            style={{
-              padding: '2px 8px',
-              fontSize: 11,
-              border: '1px solid var(--border-color)',
-              borderRadius: 'var(--radius-xs)',
-              background: 'transparent',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-            }}
-          >
-            Export
-          </button>
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border bg-card">
+      <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
+        <div className="relative w-full max-w-xs">
+          <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Filter logs"
+            className="h-8 pl-8 pr-3"
+          />
+        </div>
+        <Button
+          variant={autoScroll ? 'primary' : 'outline'}
+          size="sm"
+          onClick={() => setAutoScroll((v) => !v)}
+        >
+          Auto {autoScroll ? 'ON' : 'OFF'}
+        </Button>
+        <Button variant="outline" size="sm" onClick={onClear}>
+          <TrashIcon /> Clear
+        </Button>
+        <Button variant="outline" size="sm" onClick={onExport}>
+          <DownloadIcon /> Export
+        </Button>
+        <div className="ml-auto text-xs text-muted-foreground">
+          {filtered.length} {filtered.length === 1 ? 'entry' : 'entries'}
+          {isFiltered && ' (filtered)'}
         </div>
       </div>
-      <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Filter logs..."
-          style={{
-            width: '100%',
-            padding: '4px 8px',
-            fontSize: 12,
-            background: 'var(--bg-primary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: 4,
-            color: 'var(--text-primary)',
-            outline: 'none',
-          }}
-        />
-      </div>
+
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: 8,
-          background: 'var(--bg-primary)',
-        }}
+        className="min-h-0 flex-1 overflow-y-auto px-3 py-2 font-mono text-[12px] leading-relaxed"
       >
         {filtered.length === 0 ? (
-          <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', paddingTop: 40 }}>
-            {search ? 'No matching log entries.' : 'No log entries yet. Connect a tunnel to see live logs.'}
-          </div>
+          <EmptyState
+            title={search ? 'No matching log entries' : 'No log entries yet'}
+            description={
+              search
+                ? 'Try a different search term or clear the filter.'
+                : 'Connect a tunnel to see live cloudflared output.'
+            }
+            className="h-full border-0 bg-transparent"
+          />
         ) : (
-          filtered.map((entry) => (
-            <div
-              key={entry.id}
-              className="log-entry"
-              style={{
-                color: levelColors[entry.level] || 'var(--text-secondary)',
-                padding: '1px 0',
-              }}
-            >
-              <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
-                {formatTime(entry.timestamp)}
-              </span>
-              {' '}
-              <span
-                style={{
-                  display: 'inline-block',
-                  padding: '0 4px',
-                  fontSize: 10,
-                  fontWeight: 700,
-                  borderRadius: 3,
-                  color: levelBadge[entry.level]?.color || 'var(--text-muted)',
-                  background: levelBadge[entry.level]?.bg || 'transparent',
-                  textTransform: 'uppercase',
-                }}
-              >
-                {levelBadge[entry.level]?.label || entry.level}
-              </span>
-              {' '}
-              <span style={{ fontWeight: 600, color: 'var(--accent-blue)' }}>
-                [{entry.tunnelName}]
-              </span>
-              {' '}
-              {entry.message}
-            </div>
-          ))
+          <div className="grid gap-0.5">
+            {filtered.map((entry) => (
+              <div key={entry.id} className="flex flex-wrap items-start gap-2">
+                <span className="text-muted-foreground">[{formatTime(entry.timestamp)}]</span>
+                <Badge variant={levelTones[entry.level] || 'default'} className="rounded-sm px-1 py-0 text-[10px]">
+                  {levelLabels[entry.level] || entry.level.toUpperCase()}
+                </Badge>
+                <span className="text-primary">[{entry.tunnelName}]</span>
+                <span className="ml-1 whitespace-pre-wrap break-words text-foreground">{entry.message}</span>
+              </div>
+            ))}
+            <div ref={bottomRef} />
+          </div>
         )}
-        <div ref={bottomRef} />
       </div>
     </div>
   );

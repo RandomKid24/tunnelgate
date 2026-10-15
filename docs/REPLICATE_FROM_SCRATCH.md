@@ -189,7 +189,21 @@ sudo apt-get install freerdp3-dev
     "electron-store": "^8.2.0",
     "node-addon-api": "^8.0.0",
     "tree-kill": "^1.2.2",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+
+    "@radix-ui/react-avatar": "^1.3.1",
+    "@radix-ui/react-dialog": "^1.3.1",
+    "@radix-ui/react-dropdown-menu": "^2.2.1",
+    "@radix-ui/react-label": "^2.1.17",
+    "@radix-ui/react-separator": "^1.2.0",
+    "@radix-ui/react-slot": "^1.5.0",
+    "@radix-ui/react-switch": "^1.4.1",
+    "@radix-ui/react-tooltip": "^1.4.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.7.0",
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",
@@ -209,6 +223,14 @@ sudo apt-get install freerdp3-dev
 }
 ```
 
+> **Note on the UI dependencies.** The Radix / Tailwind / `clsx` / `cva` packages above are consumed
+> **only** by the renderer, and Vite bundles them into `dist/renderer` at build time — nothing in
+> `src/main` or `src/preload` requires them at runtime. They logically belong in `devDependencies`
+> alongside `react`/`react-dom`, which is where the rest of the bundled renderer deps live. They
+> currently sit in `dependencies`, which means electron-builder also copies their `node_modules` into
+> `app.asar` (it always includes production deps) and ships them twice. Moving them to
+> `devDependencies` would shrink the packaged app; verify with a packaged build before/after.
+
 ### 3.2 TypeScript Configs
 
 **tsconfig.json** (renderer + shared):
@@ -225,7 +247,11 @@ sudo apt-get install freerdp3-dev
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "paths": { "@shared/*": ["./src/shared/*"] }
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/renderer/*"],
+      "@shared/*": ["src/shared/*"]
+    }
   },
   "include": ["src/renderer/**/*", "src/shared/**/*", "src/renderer/types.d.ts"]
 }
@@ -274,22 +300,33 @@ sudo apt-get install freerdp3-dev
 
 ### 3.3 Vite Config
 
-**vite.config.ts:**
+**vite.config.mts** — the `.mts` extension is required: `@tailwindcss/vite` is ESM-only and a CommonJS
+`.ts` config fails to load.
 
 ```ts
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   root: '.',
   base: './',
   build: { outDir: 'dist/renderer', emptyOutDir: true },
   server: { port: 5173, strictPort: false },
-  resolve: { alias: { '@shared': path.resolve(__dirname, 'src/shared') } },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'src/renderer'),
+      '@shared': path.resolve(__dirname, 'src/shared'),
+    },
+  },
 });
 ```
+
+Mirror both aliases in `tsconfig.json`'s `paths` block — Vite resolves them at build time, but `tsc`
+(and therefore any renderer typecheck) needs `paths` or every `@/...` import reports
+`TS2307: Cannot find module`.
 
 ### 3.4 index.html
 
@@ -1441,12 +1478,30 @@ electron-builder's built-in `codesign` corrupts the Electron Framework binary on
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { Toaster } from './components/ui/toast';
+import { initTheme } from './hooks/useTheme';
 import './index.css';
 
+// Apply the stored theme (light / dark / system) before the first paint so the window
+// never flashes the wrong colours. befui keys off the `dark` class on <html>.
+initTheme();
+
+const captureRendererException = (error: unknown): void => {
+  void window.pq?.captureException(error).catch(() => undefined);
+};
+window.addEventListener('error', (event) => captureRendererException(event.error ?? new Error(event.message)));
+window.addEventListener('unhandledrejection', (event) => captureRendererException(event.reason));
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode><App /></React.StrictMode>
+  <React.StrictMode>
+    <App />
+    <Toaster />
+  </React.StrictMode>
 );
 ```
+
+> **There is no error boundary.** Any uncaught render error unmounts the whole tree and leaves a blank
+> window — which is exactly how a missing icon import once presented as a "black screen on connect".
 
 ### App Shell (`src/renderer/App.tsx`)
 
@@ -1464,22 +1519,46 @@ if (viewingTunnel) {
 
 ### CSS (`src/renderer/index.css`)
 
-CSS custom properties for theming:
+The UI is built on **Tailwind v4 + [befui](https://befui.vercel.app/)**. The stylesheet has three parts:
+
+1. **Tailwind v4 import** — `@import 'tailwindcss';` supplies the engine and preflight.
+2. **befui theme tokens** — light tokens on `:root, .light`, dark tokens on `.dark`, then an
+   `@theme inline` block that maps them to Tailwind colour utilities (`--color-background`,
+   `--color-primary`, …). The active theme is chosen by `initTheme()` / `useTheme()`
+   (`src/renderer/hooks/useTheme.ts`), which toggles `light` / `dark` on `<html>` and mirrors the
+   choice into `localStorage` (`tunnelgate:theme`) so the first paint is already correct. It
+   defaults to **light** (`DEFAULT_THEME`), with `System` available from the topbar picker.
+3. **Legacy alias block** — the old `--bg-*`, `--accent-*`, `--text-*`, `--border-color` and `--shadow-*`
+   names, aliased onto the befui tokens. These exist **solely** because `RdpView.tsx` still uses the old
+   names in inline styles. Delete the block once `RdpView` is migrated; do not delete it before.
+   `RdpView` pins itself to the dark palette by putting `className="dark"` on its root, so the remote
+   desktop keeps a dark chrome whatever the app theme is.
 
 ```css
-:root {
-  --bg-primary: #1a1b2e;
-  --bg-secondary: #232540;
-  --bg-tertiary: #2a2d4a;
-  --text-primary: #e8e8f0;
-  --text-secondary: #a0a0b8;
-  --text-muted: #6b6b80;
-  --border-color: #2e3150;
-  --accent-blue: #4a7dff;
-  --accent-green: #34d399;
-  --accent-red: #ef4444;
-  --accent-orange: #f59e0b;
+@import 'tailwindcss';
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root, .light { --background: #ffffff; --foreground: #0f172a; /* …befui light… */ }
+.dark         { --background: #0a0c10; --foreground: #e6e9ef; /* …befui dark…  */ }
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  /* …one entry per theme token… */
 }
+
+/* Transitional: only RdpView.tsx consumes these. */
+:root, .dark {
+  --bg-primary: var(--background);
+  --bg-secondary: var(--card);
+  --text-muted: var(--muted-foreground);
+  --accent-green: var(--success);
+  --shadow-modal: 0 16px 28px -6px rgb(0 0 0 / 0.45);
+}
+
+body { overflow: hidden; }
+#root { height: 100vh; }
 ```
 
 ---
@@ -2978,7 +3057,7 @@ The crash happens inside `gdi_init()` called from `postConnectCallback()`, but `
 | ------------------------------------------- | ------------------------------------- |
 | `package.json`                            | Dependencies and scripts              |
 | `index.html`                              | Vite entry HTML                       |
-| `vite.config.ts`                          | Vite bundler config                   |
+| `vite.config.mts`                          | Vite bundler config (`@` + `@shared` aliases, Tailwind v4 plugin) |
 | `tsconfig.json`                           | TypeScript config (renderer + shared) |
 | `tsconfig.main.json`                      | TypeScript config (main process)      |
 | `tsconfig.preload.json`                   | TypeScript config (preload)           |
@@ -3031,9 +3110,16 @@ The crash happens inside `gdi_init()` called from `postConnectCallback()`, but `
 
 | File                                       | Purpose                                                                                      |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| `src/renderer/main.tsx`                  | React mount point                                                                            |
+| `src/renderer/main.tsx`                  | React mount point; applies the theme via `initTheme()`, mounts `Toaster`                        |
 | `src/renderer/App.tsx`                   | Shell with tab navigation + RdpView fullscreen routing                                       |
-| `src/renderer/index.css`                 | CSS custom properties for dark theme                                                         |
+| `src/renderer/index.css`                 | Tailwind v4 import + befui theme tokens + legacy alias block (RdpView only)                  |
+| `src/renderer/components/ui/`            | Vendored befui components (Radix + CVA + Tailwind), imported as `@/components/ui/<name>`     |
+| `src/renderer/components/BrandMark.tsx`  | The app icon (`resources/icons/256x256.png`) on a white tile                                 |
+| `src/renderer/components/ThemeMenu.tsx`  | Topbar light / dark / system theme picker                                                    |
+| `src/renderer/hooks/useTheme.ts`         | Theme store: applies `light`/`dark` to `<html>`, persists to `localStorage` (default light)  |
+| `src/renderer/vite-env.d.ts`             | `vite/client` types so the renderer can `import` `.png` assets                               |
+| `src/renderer/lib/utils.ts`              | `cn()` helper (`clsx` + `tailwind-merge`)                                                    |
+| `vite.config.mts`                        | Vite + React + Tailwind v4; `@` → `src/renderer`, `@shared` → `src/shared` (must stay `.mts`) |
 | `src/renderer/types.d.ts`                | `window.cloudflareRdp` type declaration                                                    |
 | `src/renderer/views/Tunnels.tsx`         | Tunnel list + CRUD UI                                                                        |
 | `src/renderer/views/RdpView.tsx`         | Full-screen RDP viewer with ResizeObserver, fullscreen API, toolbar, error/password overlays |

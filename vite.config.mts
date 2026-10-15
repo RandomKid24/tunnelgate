@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   root: '.',
   base: './',
   build: {
@@ -16,6 +17,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      // befui components resolve as `@/components/ui/<name>` and `@/lib/utils`.
+      '@': path.resolve(__dirname, 'src/renderer'),
       '@shared': path.resolve(__dirname, 'src/shared'),
     },
   },

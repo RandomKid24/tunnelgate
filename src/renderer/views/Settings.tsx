@@ -1,5 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { AppSettings, HrmsSession } from '../../shared/types';
+import { Alert } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Field } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { InfoIcon, SaveIcon } from '@/components/ui/icons';
+import { PageHeader } from '@/components/ui/app-shell';
+import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
+import { toast } from '@/components/ui/toast';
+import { Tooltip } from '@/components/ui/tooltip';
 
 const DEFAULT_SETTINGS: AppSettings = {
   cloudflaredPath: '',
@@ -12,6 +23,30 @@ const DEFAULT_SETTINGS: AppSettings = {
 interface SettingsProps {
   session: HrmsSession | null;
   onLogout: () => void;
+}
+
+function cloudflaredStatusLabel(source: 'settings' | 'bundled' | 'system-dir' | 'path' | null): string {
+  switch (source) {
+    case 'bundled': return 'Bundled with app';
+    case 'settings': return 'Using custom path';
+    case 'system-dir':
+    case 'path': return 'Found on system';
+    default: return 'Found';
+  }
+}
+
+function InfoTipInline({ content }: { content: string }) {
+  return (
+    <Tooltip content={content} variant="light" arrow>
+      <button
+        type="button"
+        className="ml-1 inline-grid size-4 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
+        aria-label="More info"
+      >
+        <InfoIcon className="size-3.5" />
+      </button>
+    </Tooltip>
+  );
 }
 
 export function Settings({ session, onLogout }: SettingsProps) {
@@ -32,8 +67,14 @@ export function Settings({ session, onLogout }: SettingsProps) {
     const next = { ...settings, ...partial };
     setSettings(next);
     setSaving(true);
-    await window.cloudflareRdp.settings.set(next);
-    setSaving(false);
+    try {
+      await window.cloudflareRdp.settings.set(next);
+      toast.success('Settings saved');
+    } catch (err: any) {
+      toast.error('Failed to save settings', String(err));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const browseCloudflared = async () => {
@@ -45,198 +86,155 @@ export function Settings({ session, onLogout }: SettingsProps) {
     }
   };
 
+  const displayName = session?.employeeName || session?.username;
+  const isOk = cloudflaredStatus?.found;
+
   return (
-    <div style={{ padding: 24, overflowY: 'auto', height: '100%' }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, marginBottom: 24 }}>Settings</h1>
+    <>
+      <PageHeader title="Settings" description="Configure app behavior, startup, and connection settings" />
 
-      <Section title="Account" tooltip="Your HRMS account. Used to verify you're on an approved office network before allowing a connection.">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>
-              {session?.employeeName || session?.username}
+      <div className="grid gap-6 pb-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-1.5 text-sm">
+              Account
+              <InfoTipInline content="Your HRMS account used to verify access before connecting." />
+            </CardTitle>
+            <CardDescription>Signed-in account details</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <div className="grid gap-0.5">
+              <span className="text-sm font-medium">{displayName ?? '—'}</span>
+              <span className="text-xs text-muted-foreground">{session?.baseUrl}</span>
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-              {session?.baseUrl}
-            </div>
-          </div>
-          <button onClick={onLogout} style={secondaryBtnStyle}>Sign Out</button>
-        </div>
-      </Section>
+            <Button variant="outline" onClick={onLogout}>
+              Sign Out
+            </Button>
+          </CardContent>
+        </Card>
 
-      <Divider />
-
-      <Section title="Cloudflared" tooltip="cloudflared creates the encrypted tunnel to your server. TunnelGate ships with its own copy — you only need this if you want to point at a specific build.">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 12, color: cloudflaredStatus?.found ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-              {cloudflaredStatus?.found ? `● ${cloudflaredStatusLabel(cloudflaredStatus.source)}` : '○ Not found'}
-            </span>
-            {cloudflaredStatus?.path && (
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                {cloudflaredStatus.path}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-1.5 text-sm">
+              Cloudflared
+              <InfoTipInline content="cloudflared creates the encrypted tunnel. TunnelGate ships with its own copy — you only need this to override the path." />
+            </CardTitle>
+            <CardDescription>Binary location and status</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className={isOk ? 'text-success' : 'text-destructive'}>
+                {isOk ? '●' : '○'} {isOk ? cloudflaredStatusLabel(cloudflaredStatus.source) : 'Not found'}
               </span>
+              {cloudflaredStatus?.path && (
+                <span className="truncate font-mono text-muted-foreground">{cloudflaredStatus.path}</span>
+              )}
+            </div>
+            <Field label="Custom path (optional)" htmlFor="cf-path">
+              <Input
+                id="cf-path"
+                value={settings.cloudflaredPath}
+                onChange={(e) => update({ cloudflaredPath: e.target.value })}
+                placeholder="e.g. /usr/local/bin/cloudflared"
+                className="font-mono"
+              />
+            </Field>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={browseCloudflared}>
+                Browse
+              </Button>
+              {saving && (
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <SaveIcon className="animate-pulse size-3.5" /> Saving…
+                </span>
+              )}
+            </div>
+            {cloudflaredStatus?.found === false && (
+              <Alert variant="warning">
+                TunnelGate will fall back to the bundled binary if this path doesn't work.
+              </Alert>
             )}
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input
-              type="text"
-              value={settings.cloudflaredPath}
-              onChange={(e) => update({ cloudflaredPath: e.target.value })}
-              placeholder="Override path (optional — bundled copy is used if empty)"
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                fontSize: 13,
-                fontFamily: 'monospace',
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border-color)',
-                borderRadius: 'var(--radius-sm)',
-                color: 'var(--text-primary)',
-                outline: 'none',
-              }}
-            />
-            <button onClick={browseCloudflared} style={secondaryBtnStyle}>Browse</button>
-          </div>
-        </div>
-      </Section>
+          </CardContent>
+        </Card>
 
-      <Divider />
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-1.5 text-sm">
+              Startup & Behavior
+              <InfoTipInline content="Control how the app behaves when your computer starts and during sessions." />
+            </CardTitle>
+            <CardDescription>Autostart, tray, and password retention</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+              <div className="grid gap-0.5">
+                <span className="text-sm font-medium">Launch on system startup</span>
+                <span className="text-xs text-muted-foreground">
+                  Automatically start TunnelGate when you log in.
+                </span>
+              </div>
+              <Switch
+                checked={settings.launchOnStartup}
+                onCheckedChange={(v) => update({ launchOnStartup: v === true })}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+              <div className="grid gap-0.5">
+                <span className="text-sm font-medium">Start minimized to tray</span>
+                <span className="text-xs text-muted-foreground">
+                  Start in the system tray without opening the window.
+                </span>
+              </div>
+              <Switch
+                checked={settings.startMinimizedToTray}
+                onCheckedChange={(v) => update({ startMinimizedToTray: v === true })}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+              <div className="grid gap-0.5">
+                <span className="text-sm font-medium">Forget password after each session</span>
+                <span className="text-xs text-muted-foreground">
+                  Clear stored passwords from memory when sessions end.
+                </span>
+              </div>
+              <Switch
+                checked={settings.forgetPasswordAfterSession}
+                onCheckedChange={(v) => update({ forgetPasswordAfterSession: v === true })}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-      <Section title="Startup & Behavior" tooltip="Control how the app behaves when your computer starts and during sessions.">
-        <Toggle checked={settings.launchOnStartup} onChange={(v) => update({ launchOnStartup: v })} label="Launch on system startup" tooltip="Automatically start TunnelGate when you log into Windows." />
-        <Toggle checked={settings.startMinimizedToTray} onChange={(v) => update({ startMinimizedToTray: v })} label="Start minimized to tray" tooltip="Start the app in the system tray without opening the window." />
-        <Toggle checked={settings.forgetPasswordAfterSession} onChange={(v) => update({ forgetPasswordAfterSession: v })} label="Forget password after each session" tooltip="Clear the stored password from memory when the tunnel disconnects for security." />
-      </Section>
-
-      <Divider />
-
-      <Section title="Connection" tooltip="Settings related to tunnel connection behavior.">
-        <Field label="Auto-reconnect attempts" tooltip="Number of times to automatically retry if the tunnel disconnects unexpectedly. Set to 0 to disable.">
-          <input
-            type="number"
-            min={0}
-            max={10}
-            value={settings.autoReconnectAttempts}
-            onChange={(e) => update({ autoReconnectAttempts: Math.max(0, Math.min(10, parseInt(e.target.value) || 0)) })}
-            style={{
-              width: 80,
-              padding: '6px 10px',
-              fontSize: 13,
-              background: 'var(--bg-secondary)',
-              border: '1px solid var(--border-color)',
-              borderRadius: 6,
-              color: 'var(--text-primary)',
-              outline: 'none',
-            }}
-          />
-        </Field>
-      </Section>
-
-      <Divider />
-
-      {saving && (
-        <div style={{ position: 'fixed', bottom: 16, right: 16, padding: '8px 16px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-modal)', fontSize: 12, color: 'var(--text-secondary)' }}>
-          Saving...
-        </div>
-      )}
-    </div>
-  );
-}
-
-function cloudflaredStatusLabel(source: 'settings' | 'bundled' | 'system-dir' | 'path' | null): string {
-  switch (source) {
-    case 'bundled': return 'Bundled with app';
-    case 'settings': return 'Using custom path';
-    case 'system-dir':
-    case 'path': return 'Found on system';
-    default: return 'Found';
-  }
-}
-
-function Section({ title, children, tooltip }: { title: string; children: React.ReactNode; tooltip?: string }) {
-  return (
-    <div style={{ marginBottom: 24 }}>
-      <h2
-        title={tooltip}
-        style={{
-          fontSize: 14,
-          fontWeight: 600,
-          color: 'var(--text-secondary)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px',
-          marginBottom: 12,
-          cursor: tooltip ? 'help' : 'default',
-          borderBottom: tooltip ? '1px dashed var(--text-muted)' : 'none',
-          display: 'inline-block',
-        }}
-      >
-        {title}
-      </h2>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {children}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-1.5 text-sm">
+              Connection
+              <InfoTipInline content="Settings related to tunnel connection behavior." />
+            </CardTitle>
+            <CardDescription>Auto-reconnect attempts</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Field label="Auto-reconnect attempts (0–10)" htmlFor="reconnect-attempts">
+              <Input
+                id="reconnect-attempts"
+                type="number"
+                min={0}
+                max={10}
+                value={settings.autoReconnectAttempts}
+                onChange={(e) =>
+                  update({
+                    autoReconnectAttempts: Math.max(
+                      0,
+                      Math.min(10, Number.parseInt(e.target.value) || 0),
+                    ),
+                  })
+                }
+                className="max-w-32"
+              />
+            </Field>
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    </>
   );
 }
-
-function Divider() {
-  return (
-    <div style={{ height: 1, background: 'var(--border-color)', marginBottom: 24 }} />
-  );
-}
-
-function Field({ label, children, tooltip }: { label: string; children: React.ReactNode; tooltip?: string }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <span
-        title={tooltip}
-        style={{
-          fontSize: 13,
-          color: 'var(--text-primary)',
-          cursor: tooltip ? 'help' : 'default',
-          borderBottom: tooltip ? '1px dashed var(--text-muted)' : 'none',
-          display: 'inline-block',
-          width: 'fit-content',
-        }}
-      >
-        {label}
-      </span>
-      {children}
-    </div>
-  );
-}
-
-function Toggle({ checked, onChange, label, tooltip }: { checked: boolean; onChange: (v: boolean) => void; label: string; tooltip?: string }) {
-  return (
-    <label
-      title={tooltip}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        cursor: tooltip ? 'help' : 'pointer',
-        fontSize: 13,
-        transition: 'opacity 0.15s',
-      }}
-    >
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        style={{ accentColor: 'var(--accent-blue)', width: 16, height: 16, cursor: 'pointer' }}
-      />
-      {label}
-    </label>
-  );
-}
-
-const secondaryBtnStyle: React.CSSProperties = {
-  padding: '10px 18px',
-  fontSize: 13,
-  fontWeight: 500,
-  border: '1px solid var(--border-color)',
-  borderRadius: 'var(--radius-sm)',
-  background: 'transparent',
-  color: 'var(--text-secondary)',
-  cursor: 'pointer',
-};

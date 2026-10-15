@@ -93,7 +93,7 @@ TunnelGate wraps `cloudflared access tcp` into a GUI:
 ├── index.html                                 # Vite entry HTML
 ├── package.json
 ├── electron-builder.yml                       # Packaging config
-├── vite.config.ts                             # Vite bundler config
+├── vite.config.mts                            # Vite bundler config (ESM-only: @tailwindcss/vite)
 ├── tsconfig.json                              # TS config (renderer + shared)
 ├── tsconfig.main.json                         # TS config (main process)
 ├── tsconfig.preload.json                      # TS config (preload)
@@ -146,10 +146,13 @@ TunnelGate wraps `cloudflared access tcp` into a GUI:
 │   ├── renderer/
 │   │   ├── main.tsx                           # React mount point
 │   │   ├── App.tsx                            # Shell + navigation
-│   │   ├── index.css                          # CSS custom properties
+│   │   ├── index.css                          # Tailwind v4 + befui theme + legacy token aliases
 │   │   ├── types.d.ts                         # window.cloudflareRdp type def
+│   │   ├── vite-env.d.ts                      # vite/client types (asset imports)
 │   │   ├── views/
 │   │   │   ├── Tunnels.tsx                    # Tunnel list + CRUD
+│   │   │   ├── Servers.tsx                    # Server list + credentials dialog
+│   │   │   ├── Login.tsx                      # HRMS sign-in
 │   │   │   ├── RdpView.tsx                    # Full-screen RDP viewer
 │   │   │   ├── Logs.tsx                       # Log viewer
 │   │   │   └── Settings.tsx                   # Settings form
@@ -157,8 +160,16 @@ TunnelGate wraps `cloudflared access tcp` into a GUI:
 │   │   │   ├── TunnelCard.tsx                 # Single tunnel card
 │   │   │   ├── TunnelForm.tsx                 # Add/edit tunnel form
 │   │   │   ├── RdpCanvas.tsx                  # HTML5 Canvas RDP renderer
-│   │   │   └── LogViewer.tsx                  # Scrollable log display
+│   │   │   ├── WifiStatusBar.tsx              # Wi-Fi / office-network indicator
+│   │   │   ├── LogViewer.tsx                  # Scrollable log display
+│   │   │   ├── BrandMark.tsx                  # App icon tile
+│   │   │   ├── ThemeMenu.tsx                  # Light / dark / system picker
+│   │   │   └── ui/                            # Vendored befui components (Radix + CVA)
+│   │   ├── lib/
+│   │   │   ├── format.ts                      # shortServerName / formatIpcError
+│   │   │   └── utils.ts                       # cn() helper
 │   │   └── hooks/
+│   │       ├── useTheme.ts                    # Theme store (applies class, persists)
 │   │       ├── useTunnels.ts                  # Tunnel state + live updates
 │   │       └── useLogs.ts                     # Log streaming + batching
 │   │

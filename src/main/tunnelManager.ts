@@ -35,6 +35,19 @@ interface ManagedTunnel {
   stdoutBuffer: string;
 }
 
+// Everything the platform RDP client (mstsc / Microsoft Remote Desktop /
+// xfreerdp) needs to dial a session. `connectHost`/`connectPort` are the
+// address the client actually dials — the local cloudflared port for tunneled
+// servers, or the real host:port for direct (superuser-added) servers.
+export interface NativeClientTarget {
+  id: string;
+  name: string;
+  username: string;
+  password: string;
+  connectHost: string;
+  connectPort: number;
+}
+
 type StatusCallback = (state: TunnelRuntimeState) => void;
 type LogCallback = (tunnelId: string, tunnelName: string, level: 'info' | 'warn' | 'error' | 'debug', message: string) => void;
 
@@ -334,97 +347,167 @@ export class TunnelManager {
     writeLog(tunnel.config.id, tunnel.config.name, 'info', `Tunnel ready on localhost:${tunnel.state.localPort}`);
   }
 
-  launchNativeClient(tunnelId: string): void {
-    const tunnel = this.registry.get(tunnelId);
-    if (!tunnel || !tunnel.state.localPort || !tunnel.password) return;
-
-    credentialStore.injectCredential(
-      tunnel.config.id,
-      tunnel.config.name,
-      tunnel.config.username,
-      tunnel.password,
-      tunnel.state.localPort,
-      tunnel.config.hostname,
-    ).catch((err: any) => {
-      writeLog(tunnel.config.id, tunnel.config.name, 'error', `Credential injection failed: ${err.message}`);
-    });
-
-    this.launchRdpClient(tunnel);
-  }
-
-  private launchRdpClient(tunnel: ManagedTunnel): void {
-    const port = tunnel.state.localPort!;
-
-    if (isWin) {
-      this.launchMstsc(tunnel, port);
-    } else if (isMac) {
-      this.launchMacRdp(tunnel, port);
+  /**
+   * Hand the session off to the platform's native RDP client (mstsc /
+   * Microsoft Remote Desktop / xfreerdp). Used by the "Open Native Client"
+   * toolbar action, which must work whether or not the in-app viewer is up,
+   * so it takes an explicit target instead of relying on a running tunnel.
+   * Resolves once the client has been handed off; rejects with a message
+   * safe to show the user when the platform client is missing or fails.
+   */
+  launchNativeClientFor(target: NativeClientTarget): Promise<void> {
+    if (target.connectHost === '127.0.0.1') {
+      credentialStore.injectCredential(
+        target.id,
+        target.name,
+        target.username,
+        target.password,
+        target.connectPort,
+        target.connectHost,
+      ).catch((err: any) => {
+        writeLog(target.id, target.name, 'error', `Credential injection failed: ${err.message}`);
+      });
     } else {
-      this.launchLinuxRdp(tunnel, port);
+      // Direct server: mstsc dials the real host, so a 127.0.0.1-keyed
+      // credential entry would never match. The client prompts instead.
+      writeLog(target.id, target.name, 'info',
+        'Direct server — skipping credential injection; the RDP client will prompt for credentials.');
     }
+
+    return this.launchRdpClient(target);
   }
 
-  private launchMstsc(tunnel: ManagedTunnel, port: number): void {
-    writeLog(tunnel.config.id, tunnel.config.name, 'info', `Launching: mstsc.exe /v:127.0.0.1:${port}`);
-    const proc = spawn('mstsc.exe', [`/v:127.0.0.1:${port}`], {
-      stdio: 'ignore',
-      windowsHide: false,
-    });
+  launchNativeClient(tunnelId: string): Promise<void> {
+    const tunnel = this.registry.get(tunnelId);
+    if (!tunnel) {
+      return Promise.reject(new Error('No active tunnel for this server. Connect once to start it, then open the native client.'));
+    }
+    if (!tunnel.state.localPort) {
+      return Promise.reject(new Error('The tunnel has no local port yet — it may still be starting. Try again in a moment.'));
+    }
+    if (!tunnel.password) {
+      return Promise.reject(new Error('No password is available for this session. Reconnect with your password first.'));
+    }
 
-    proc.on('error', (err) => {
-      writeLog(tunnel.config.id, tunnel.config.name, 'error', `Failed to launch mstsc: ${err.message}`);
-      writeLog(tunnel.config.id, tunnel.config.name, 'info', `Manual connection: 127.0.0.1:${port}`);
-    });
-
-    proc.on('close', () => {
-      writeLog(tunnel.config.id, tunnel.config.name, 'info', 'RDP session window closed');
-      if (getSettings().forgetPasswordAfterSession) {
-        credentialStore.clearCredential(tunnel.config.id, tunnel.config.name, port, tunnel.config.hostname);
-      }
-    });
-  }
-
-  private launchMacRdp(tunnel: ManagedTunnel, port: number): void {
-    writeLog(tunnel.config.id, tunnel.config.name, 'info', `Tunnel ready. Connect RDP client to 127.0.0.1:${port}`);
-    const proc = spawn('open', [
-      '-b', 'com.microsoft.rdc.macos',
-      '--args',
-      `full address:s:127.0.0.1:${port}`,
-      `username:s:${tunnel.config.username}`,
-    ], { stdio: 'ignore' });
-
-    proc.on('error', () => {
-      writeLog(tunnel.config.id, tunnel.config.name, 'info',
-        `Open Microsoft Remote Desktop and connect to 127.0.0.1:${port} as ${tunnel.config.username}`
-      );
+    return this.launchNativeClientFor({
+      id: tunnel.config.id,
+      name: tunnel.config.name,
+      username: tunnel.config.username,
+      password: tunnel.password,
+      connectHost: '127.0.0.1',
+      connectPort: tunnel.state.localPort,
     });
   }
 
-  private launchLinuxRdp(tunnel: ManagedTunnel, port: number): void {
+  private launchRdpClient(target: NativeClientTarget): Promise<void> {
+    if (isWin) return this.launchMstsc(target);
+    if (isMac) return this.launchMacRdp(target);
+    return this.launchLinuxRdp(target);
+  }
+
+  private launchMstsc(target: NativeClientTarget): Promise<void> {
+    const address = `${target.connectHost}:${target.connectPort}`;
+    writeLog(target.id, target.name, 'info', `Launching: mstsc.exe /v:${address}`);
+
+    return new Promise<void>((resolve, reject) => {
+      const proc = spawn('mstsc.exe', [`/v:${address}`], {
+        stdio: 'ignore',
+        windowsHide: false,
+      });
+
+      proc.on('spawn', () => {
+        writeLog(target.id, target.name, 'info', 'RDP session window opened');
+        resolve();
+      });
+
+      proc.on('error', (err) => {
+        writeLog(target.id, target.name, 'error', `Failed to launch mstsc: ${err.message}`);
+        writeLog(target.id, target.name, 'info', `Manual connection: ${address}`);
+        reject(new Error(`Could not start mstsc (${err.message}). Connect manually to ${address}.`));
+      });
+
+      proc.on('close', () => {
+        writeLog(target.id, target.name, 'info', 'RDP session window closed');
+        if (getSettings().forgetPasswordAfterSession) {
+          credentialStore.clearCredential(target.id, target.name, target.connectPort, target.connectHost);
+        }
+      });
+    });
+  }
+
+  private launchMacRdp(target: NativeClientTarget): Promise<void> {
+    const address = `${target.connectHost}:${target.connectPort}`;
+    writeLog(target.id, target.name, 'info', `Launching Microsoft Remote Desktop for ${address}`);
+
+    return new Promise<void>((resolve, reject) => {
+      const proc = spawn('open', [
+        '-b', 'com.microsoft.rdc.macos',
+        '--args',
+        `full address:s:${address}`,
+        `username:s:${target.username}`,
+      ], { stdio: 'ignore' });
+
+      proc.on('error', (err) => {
+        reject(new Error(
+          `Could not open Microsoft Remote Desktop (${err.message}). Install it from the App Store, then connect manually to ${address} as ${target.username}.`
+        ));
+      });
+
+      // `open` exits non-zero (without a spawn error) when the bundle is
+      // missing, so the exit code — not the error event — is the real signal.
+      proc.on('close', (code) => {
+        if (code !== 0) {
+          reject(new Error(
+            `Microsoft Remote Desktop is not installed (or did not open). Install it from the App Store, then connect manually to ${address} as ${target.username}.`
+          ));
+          return;
+        }
+        writeLog(target.id, target.name, 'info', 'Microsoft Remote Desktop opened');
+        resolve();
+      });
+    });
+  }
+
+  private async launchLinuxRdp(target: NativeClientTarget): Promise<void> {
+    const address = `${target.connectHost}:${target.connectPort}`;
     const clients: [string, string[]][] = [
-      ['xfreerdp', ['/v:localhost:' + port, '/u:' + tunnel.config.username, '/p:' + tunnel.password, '/dynamic-resolution', '+fonts']],
-      ['remmina', ['--connect', `rdp://${tunnel.config.username}@localhost:${port}`]],
+      ['xfreerdp', [`/v:${address}`, `/u:${target.username}`, `/p:${target.password}`, '/dynamic-resolution', '+fonts']],
+      ['remmina', ['--connect', `rdp://${target.username}@${address}`]],
     ];
 
     for (const [client, args] of clients) {
-      try {
-        const proc = spawn(client, args, { stdio: 'ignore' });
-        writeLog(tunnel.config.id, tunnel.config.name, 'info', `Launched ${client} for localhost:${port}`);
-        proc.on('error', () => {});
+      const launched = await new Promise<boolean>((resolve) => {
+        let settled = false;
+        const done = (ok: boolean) => { if (!settled) { settled = true; resolve(ok); } };
+
+        let proc: ChildProcess;
+        try {
+          proc = spawn(client, args, { stdio: 'ignore' });
+        } catch {
+          done(false);
+          return;
+        }
+
+        proc.on('spawn', () => {
+          writeLog(target.id, target.name, 'info', `Launched ${client} for ${address}`);
+          done(true);
+        });
+        proc.on('error', () => done(false));
         proc.on('close', (code) => {
           if (code !== 0) {
-            writeLog(tunnel.config.id, tunnel.config.name, 'info',
-              `${client} exited with code ${code}. Try connecting manually: localhost:${port}`
+            writeLog(target.id, target.name, 'info',
+              `${client} exited with code ${code}. Try connecting manually: ${address}`
             );
           }
         });
-        return;
-      } catch {}
+      });
+
+      if (launched) return;
     }
 
-    writeLog(tunnel.config.id, tunnel.config.name, 'info',
-      `No RDP client found. Connect manually to localhost:${port} as ${tunnel.config.username}`
-    );
+    const msg = `No RDP client found. Install xfreerdp or Remmina, or connect manually to ${address} as ${target.username}.`;
+    writeLog(target.id, target.name, 'info', msg);
+    throw new Error(msg);
   }
 
   private async handleUnexpectedDisconnect(

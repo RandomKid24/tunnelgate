@@ -401,7 +401,10 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
   const handleLaunchNativeClient = useCallback(() => {
     if (!tunnel) return;
     window.cloudflareRdp.rdp.launchNativeClient(tunnel.id).catch((err: any) => {
+      // The launch path tears down the in-app view first, so surface failures
+      // on the error card (with Retry / Cancel) instead of a silent no-op.
       setError(formatIpcError(err, 'Failed to launch native client'));
+      setStatus('error');
     });
   }, [tunnel]);
 
@@ -466,29 +469,32 @@ export function RdpView({ tunnel, onBack, onServerName }: Props) {
         </span>
         <div style={{ flex: 1 }} />
         {(status === 'connected' || status === 'error') && (
-          <>
-            <button
-              onClick={() => window.cloudflareRdp.rdp.toggleFullscreen()}
-              style={toolbarBtnStyle}
-              title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-            >
-              {isFullscreen ? (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
-                </svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-                </svg>
-              )}
-            </button>
-            {!tunnel.id.startsWith('server-') && (
-              <button onClick={handleLaunchNativeClient} style={toolbarBtnStyle}>
-                Open Native Client
-              </button>
+          <button
+            onClick={() => window.cloudflareRdp.rdp.toggleFullscreen()}
+            style={toolbarBtnStyle}
+            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+          >
+            {isFullscreen ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+              </svg>
             )}
-          </>
+          </button>
         )}
+        {/* Always available — for every server-list and manual tunnel, in any
+            state. It starts the tunnel if needed and hands the session to the
+            system RDP client (mstsc / Microsoft Remote Desktop). */}
+        <button
+          onClick={handleLaunchNativeClient}
+          style={toolbarBtnStyle}
+          title="Open this session in the system RDP client (mstsc / Microsoft Remote Desktop)"
+        >
+          Open Native Client
+        </button>
         {(status === 'connected' || status === 'connecting') && (
           <Button
             variant="outline"

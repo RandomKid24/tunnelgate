@@ -224,11 +224,18 @@ async function resolveServerTarget(
   };
   await tunnelManager.connect(config, srv.password);
 
+  return { host: '127.0.0.1', port: await waitForTunnelPort(tunnelManager, sessionId) };
+}
+
+// Wait until a managed tunnel reports a connected state with a usable local
+// port. Shared by the in-app viewer connect path and the native-client launch
+// path, which must both bring the tunnel up before dialing anything.
+async function waitForTunnelPort(tunnelManager: TunnelManager, sessionId: string): Promise<number> {
   const deadline = Date.now() + 30000;
   while (Date.now() < deadline) {
     const state = tunnelManager.getRuntimeState(sessionId);
     if (state?.status === 'connected' && state.localPort) {
-      return { host: '127.0.0.1', port: state.localPort };
+      return state.localPort;
     }
     if (!state || state.status === 'error') {
       throw new Error(state?.lastError || 'Could not start the secure tunnel to this server.');
@@ -680,7 +687,40 @@ export function registerIpcHandlers(tunnelManager: TunnelManager, rdpViewManager
       await new Promise((resolve) => setTimeout(resolve, 800));
     }
 
-    tunnelManager.launchNativeClient(tunnelId);
+    // Server-list sessions (HRMS or direct): bring the tunnel up if needed and
+    // hand the session to the system RDP client at the resolved address.
+    const srv = serverSessions.get(tunnelId);
+    if (srv) {
+      const target = await resolveServerTarget(tunnelManager, tunnelId, srv);
+      await tunnelManager.launchNativeClientFor({
+        id: tunnelId,
+        name: srv.name,
+        username: srv.username,
+        password: srv.password,
+        connectHost: target.host,
+        connectPort: target.port,
+      });
+      return;
+    }
+
+    // Legacy manual tunnels: start the tunnel first when it is not running,
+    // so the button works from the disconnected state too.
+    const config = getTunnels().find((t) => t.id === tunnelId);
+    if (!config) throw new Error('Tunnel not found');
+
+    const state = tunnelManager.getRuntimeState(tunnelId);
+    if (!state || state.status !== 'connected' || !state.localPort) {
+      let password: string;
+      try {
+        password = credentialStore.decrypt(config.encryptedPassword);
+      } catch {
+        throw new Error('Failed to decrypt credentials. Re-enter the password in the tunnel settings.');
+      }
+      await tunnelManager.connect(config, password);
+      await waitForTunnelPort(tunnelManager, tunnelId);
+    }
+
+    await tunnelManager.launchNativeClient(tunnelId);
   });
 
   ipcMain.handle(IPC_CHANNELS.RDP_VIEW_DISCONNECT, (_event, tunnelId: string) => {

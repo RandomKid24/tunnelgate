@@ -9,7 +9,7 @@ import { WifiStatusBar } from './components/WifiStatusBar';
 import { ThemeMenu } from './components/ThemeMenu';
 import { ServerEntry, TunnelConfig } from '../shared/types';
 import { useTunnels, TunnelWithState } from './hooks/useTunnels';
-import { useUpdateCheck } from './hooks/useUpdateCheck';
+import { useAppUpdate } from './hooks/useAppUpdate';
 import { useAuth } from './hooks/useAuth';
 import { AppShell, Topbar, AppContent } from '@/components/ui/app-shell';
 import {
@@ -76,7 +76,7 @@ function App() {
   );
   const { session, loading: authLoading, login, logout } = useAuth();
   const { tunnels, loading, errors, add, update, remove, connect, disconnect, reload } = useTunnels(logout);
-  const updateInfo = useUpdateCheck();
+  const appUpdate = useAppUpdate();
   const isSuperuser = !!session?.isSuperuser;
 
   const navItems: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -148,24 +148,35 @@ function App() {
         </div>
       </Topbar>
 
-      {updateInfo && !updateDismissed && (
+      {appUpdate && (appUpdate.state === 'ready' || !updateDismissed) && (
         <Banner
+          key={appUpdate.state}
           action={
-            <Button
-              size="xs"
-              variant="dark"
-              onClick={() => window.cloudflareRdp.app.openExternal(updateInfo.url)}
-            >
-              Download
-            </Button>
+            appUpdate.state === 'ready' ? (
+              <Button size="xs" variant="dark" onClick={() => window.cloudflareRdp.app.installUpdate()}>
+                Restart & install
+              </Button>
+            ) : undefined
           }
-          onDismiss={() => {
-            sessionStorage.setItem('update-banner-dismissed', '1');
-            setUpdateDismissed(true);
-          }}
+          onDismiss={
+            appUpdate.state === 'ready'
+              ? undefined
+              : () => {
+                  sessionStorage.setItem('update-banner-dismissed', '1');
+                  setUpdateDismissed(true);
+                }
+          }
         >
-          TunnelGate <strong>{updateInfo.latestVersion}</strong> is available — you're running{' '}
-          {updateInfo.currentVersion}.
+          {appUpdate.state === 'available' && (
+            <>TunnelGate <strong>{appUpdate.version}</strong> is available — downloading…</>
+          )}
+          {appUpdate.state === 'downloading' && (
+            <>Downloading TunnelGate <strong>{appUpdate.version}</strong>… {appUpdate.percent}%</>
+          )}
+          {appUpdate.state === 'ready' && (
+            <>TunnelGate <strong>{appUpdate.version}</strong> is ready — restart to install.</>
+          )}
+          {appUpdate.state === 'error' && <>Update failed: {appUpdate.message}</>}
         </Banner>
       )}
 

@@ -1,4 +1,4 @@
-import { TunnelConfig, TunnelRuntimeState, AppSettings, LogEntry, TunnelFormData, UpdateInfo, HrmsSession, WifiStatusResult, ServerEntry, ServerList, LocalServerInput } from '../shared/types';
+import { TunnelConfig, TunnelRuntimeState, AppSettings, LogEntry, TunnelFormData, UpdateStatus, HrmsSession, WifiStatusResult, ServerEntry, ServerList, LocalServerInput } from '../shared/types';
 
 declare global {
   interface Window {
@@ -45,7 +45,9 @@ declare global {
       };
       app: {
         getVersion: () => Promise<string>;
-        checkForUpdates: () => Promise<UpdateInfo | null>;
+        getUpdateStatus: () => Promise<UpdateStatus | null>;
+        onUpdateStatus: (callback: (status: UpdateStatus) => void) => () => void;
+        installUpdate: () => Promise<void>;
         openExternal: (url: string) => void;
         selectFile: () => Promise<string | null>;
         checkCloudflared: () => Promise<{

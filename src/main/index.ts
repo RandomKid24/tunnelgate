@@ -9,6 +9,7 @@ import { RdpViewManager } from './rdpViewManager';
 import { registerIpcHandlers, sendStatusToRenderer, sendLogToRenderer } from './ipcHandlers';
 import { writeLog } from './logger';
 import { getSettings, getWindowBounds, setWindowBounds } from './store';
+import { initUpdater } from './updater';
 
 const pq = new PQClient({
   apiKey: process.env.PQ_API_KEY || '02b1dbc99a3dbf8165603651634496e9aabb496e5ef94a14c6169baa7916b3df',
@@ -167,6 +168,8 @@ if (!gotTheLock) {
       mainWindow.setFullScreen(!isFs);
       return !isFs;
     });
+
+    initUpdater(() => mainWindow);
 
     createMainWindow();
 

@@ -241,7 +241,8 @@ jobs:
           path: |
             release/*.exe
             release/*.dmg
-            release/*-mac.zip
+            release/*.zip
+            release/latest*.yml
             release/*.AppImage
             release/*.deb
             release/*.snap

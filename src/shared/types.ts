@@ -78,7 +78,9 @@ export const IPC_CHANNELS = {
   SETTINGS_GET: 'settings:get',
   SETTINGS_SET: 'settings:set',
   APP_GET_VERSION: 'app:get-version',
-  APP_CHECK_UPDATES: 'app:check-updates',
+  APP_UPDATE_STATUS: 'app:update-status',
+  APP_UPDATE_GET: 'app:update-get',
+  APP_UPDATE_INSTALL: 'app:update-install',
   APP_OPEN_EXTERNAL: 'app:open-external',
   DIALOG_SELECT_FILE: 'dialog:select-file',
   CHECK_CLOUDFLARED: 'check:cloudflared',
@@ -127,12 +129,11 @@ export interface DisplayInfo {
   scaleFactor: number;
 }
 
-export interface UpdateInfo {
-  currentVersion: string;
-  latestVersion: string;
-  url: string;
-  hasUpdate: boolean;
-}
+export type UpdateStatus =
+  | { state: 'available'; version: string }
+  | { state: 'downloading'; version: string; percent: number }
+  | { state: 'ready'; version: string }
+  | { state: 'error'; message: string };
 
 export interface ServerEntry {
   id: string;

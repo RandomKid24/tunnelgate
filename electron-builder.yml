@@ -41,6 +41,10 @@ mac:
     - target: dmg
       arch:
         - arm64
+    # electron-updater (Squirrel.Mac) updates from the zip, not the dmg.
+    - target: zip
+      arch:
+        - arm64
   icon: resources/icons/icon.png
   category: public.app-category.utilities
   hardenedRuntime: false
@@ -83,4 +87,9 @@ nsis:
   deleteAppDataOnUninstall: false
   createDesktopShortcut: true
   artifactName: ${productName}-Setup-${arch}.${ext}
-publish: null
+# Writes app-update.yml into the app and latest*.yml next to the installers.
+# Actual uploading is done by the workflow's publish job (builds run --publish never).
+publish:
+  provider: github
+  owner: RandomKid24
+  repo: tunnelgate

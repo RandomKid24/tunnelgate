@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { pqElectronPreload } from 'pq-befu/integrations/electron';
-import { IPC_CHANNELS, TunnelFormData, TunnelConfig, AppSettings, TunnelRuntimeState, LogEntry, UpdateInfo, HrmsSession, WifiStatusResult, DisplayInfo, ServerEntry, ServerList, LocalServerInput } from '../shared/types';
+import { IPC_CHANNELS, TunnelFormData, TunnelConfig, AppSettings, TunnelRuntimeState, LogEntry, UpdateStatus, HrmsSession, WifiStatusResult, DisplayInfo, ServerEntry, ServerList, LocalServerInput } from '../shared/types';
 
 pqElectronPreload();
 
@@ -105,8 +105,19 @@ const api = {
     getVersion: (): Promise<string> =>
       ipcRenderer.invoke(IPC_CHANNELS.APP_GET_VERSION),
 
-    checkForUpdates: (): Promise<UpdateInfo | null> =>
-      ipcRenderer.invoke(IPC_CHANNELS.APP_CHECK_UPDATES),
+    getUpdateStatus: (): Promise<UpdateStatus | null> =>
+      ipcRenderer.invoke(IPC_CHANNELS.APP_UPDATE_GET),
+
+    onUpdateStatus: (callback: (status: UpdateStatus) => void) => {
+      const handler = (_event: any, status: UpdateStatus) => callback(status);
+      ipcRenderer.on(IPC_CHANNELS.APP_UPDATE_STATUS, handler);
+      return () => {
+        ipcRenderer.removeListener(IPC_CHANNELS.APP_UPDATE_STATUS, handler);
+      };
+    },
+
+    installUpdate: (): Promise<void> =>
+      ipcRenderer.invoke(IPC_CHANNELS.APP_UPDATE_INSTALL),
 
     openExternal: (url: string): void => {
       ipcRenderer.invoke(IPC_CHANNELS.APP_OPEN_EXTERNAL, url);

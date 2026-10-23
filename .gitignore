@@ -13,3 +13,5 @@ native/wifi-native/build/
 # (too large to track; pinned + checksummed in that script).
 resources/cloudflared
 resources/cloudflared.exe
+
+.env.release

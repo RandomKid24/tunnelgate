@@ -31,15 +31,74 @@ exports.default = async function afterPack(context) {
   }
 
   const entitlements = path.join(projectDir, 'build', 'entitlements.mac.plist');
-  const sign = spawnSync('codesign', [
-    '--deep', '--force', '--sign', '-',
-    '--options', 'runtime',
-    '--entitlements', entitlements,
-    appPath,
-  ], { stdio: 'inherit' });
-
-  if (sign.status !== 0) {
-    throw new Error(`[afterPack] codesign failed with exit code ${sign.status}`);
+  // Release builds: set SIGN_IDENTITY ("Developer ID Application: Name (TEAMID)")
+  // plus APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID to sign and
+  // notarize. Without SIGN_IDENTITY we fall back to ad-hoc (dev builds).
+  const identity = process.env.SIGN_IDENTITY || '-';
+  const release = identity !== '-';
+  if (release && !identity.startsWith('Developer ID Application:')) {
+    throw new Error(`[afterPack] SIGN_IDENTITY must be a "Developer ID Application" certificate (got "${identity}"); Apple rejects others at notarization`);
   }
-  console.log('[afterPack] Ad-hoc signed', appPath);
+  const run = (cmd, args) => {
+    const r = spawnSync(cmd, args, { stdio: 'inherit' });
+    if (r.status !== 0) throw new Error(`[afterPack] ${cmd} ${args[0]} failed (${r.status})`);
+  };
+  const codesign = (target, extra = []) => run('codesign', [
+    '--force', '--sign', identity, '--options', 'runtime',
+    ...(release ? ['--timestamp'] : []),
+    '--entitlements', entitlements, ...extra, target,
+  ]);
+
+  if (release) {
+    // --deep misses loose dylibs/helpers (e.g. Electron's Libraries/*.dylib, ShipIt) and
+    // notarization rejects any unsigned or untimestamped Mach-O. Sign every Mach-O file,
+    // then the nested bundles, innermost first, then the app itself.
+    const machO = [];
+    const bundles = [];
+    const walk = (dir) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, e.name);
+        if (e.isSymbolicLink()) continue;
+        if (e.isDirectory()) {
+          if (/\.(framework|app)$/.test(e.name)) bundles.push(p);
+          walk(p);
+        } else if (e.isFile()) {
+          const fd = fs.openSync(p, 'r');
+          const head = Buffer.alloc(4);
+          fs.readSync(fd, head, 0, 4, 0);
+          fs.closeSync(fd);
+          const magic = head.toString('hex');
+          if (['cffaedfe', 'cafebabe', 'feedfacf'].includes(magic)) machO.push(p);
+        }
+      }
+    };
+    walk(appPath);
+    const deepestFirst = (a, b) => b.split(path.sep).length - a.split(path.sep).length;
+    for (const f of machO.sort(deepestFirst)) codesign(f);
+    for (const b of bundles.sort(deepestFirst)) codesign(b);
+    codesign(appPath);
+  } else {
+    codesign(appPath, ['--deep']);
+  }
+  console.log(`[afterPack] ${release ? 'Developer ID' : 'Ad-hoc'} signed`, appPath);
+
+  if (!release) return;
+
+  const zip = path.join(context.appOutDir, 'notarize.zip');
+  run('ditto', ['-c', '-k', '--keepParent', appPath, zip]);
+  const creds = [
+    '--apple-id', process.env.APPLE_ID,
+    '--password', process.env.APPLE_APP_SPECIFIC_PASSWORD,
+    '--team-id', process.env.APPLE_TEAM_ID,
+  ];
+  const sub = spawnSync('xcrun', ['notarytool', 'submit', zip, '--wait', ...creds], { encoding: 'utf8' });
+  process.stdout.write(sub.stdout || '');
+  process.stderr.write(sub.stderr || '');
+  if (!/status: Accepted/.test(sub.stdout || '')) {
+    const id = /id: ([0-9a-f-]{36})/.exec(sub.stdout || '')?.[1];
+    throw new Error(`[afterPack] notarization not accepted${id ? `; see: xcrun notarytool log ${id}` : ''}`);
+  }
+  fs.rmSync(zip);
+  run('xcrun', ['stapler', 'staple', appPath]);
+  console.log('[afterPack] Notarized and stapled', appPath);
 };

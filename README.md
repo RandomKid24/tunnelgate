@@ -32,6 +32,11 @@
 
 ---
 
+## ✨ What's new in 2.2.3
+
+- **Updates install themselves.** TunnelGate checks for a new release on launch and every few hours, downloads it in the background, and shows a banner with **Restart & install** when it is ready. If you ignore it, it installs on the next quit. This starts with 2.2.3, so older versions need one manual download first.
+- **Signed and notarized on macOS.** Releases are signed with a Developer ID certificate and notarized by Apple, so the app opens with a normal double-click: no "damaged" warning and no `xattr` workaround.
+
 ## ✨ What's new in 2.2
 
 A major overhaul of the interface and of how the remote screen is drawn.
@@ -59,7 +64,7 @@ A major overhaul of the interface and of how the remote screen is drawn.
 | 🔐 | **Zero Plaintext Secrets** | Passwords encrypted at rest with Electron `safeStorage` (DPAPI / Keychain / libsecret) |
 | 📶 | **Wi-Fi gate** | Optionally restrict connections to approved networks |
 | 🪟 | **Native Client Fallback** | Launch `mstsc.exe` (Windows) or Microsoft Remote Desktop (macOS) with pre-filled credentials |
-| 🔔 | **Update notice** | Tells you when a newer stable release is available |
+| 🔔 | **Auto-update** | Downloads new releases in the background and installs them on restart |
 | ⌨️ | **Esc goes to the session** | <kbd>Esc</kbd> is forwarded to the remote desktop; in fullscreen it exits fullscreen |
 | 🌍 | **Cross-Platform** | macOS (Apple Silicon), Windows x64, Linux x64 |
 
@@ -75,7 +80,7 @@ Grab the latest installer from the [Releases page](https://github.com/RandomKid2
 | Windows x64 | `TunnelGate-Setup-x64.exe` |
 | Linux x64 | `TunnelGate-x86_64.AppImage` or `TunnelGate-amd64.deb` |
 
-Releases whose title says **Beta** or **Stable** are labelled so you can pick the one you want. On macOS, if the system says the app is damaged, run `xattr -cr /Applications/TunnelGate.app` (see [macOS notes](#macos-code-signing-workarounds)).
+Once installed (2.2.3 or later), the app updates itself. Releases whose title says **Beta** or **Stable** are labelled so you can pick the one you want. On macOS 2.2.3+ is notarized and opens normally; for older, unsigned builds that show an "app is damaged" warning, run `xattr -cr /Applications/TunnelGate.app` (see [macOS notes](#macos-code-signing-workarounds)).
 
 ---
 
@@ -201,6 +206,10 @@ npm run build:all && npx electron-builder --linux
 
 Every push to `main` builds all three platforms in CI and publishes a GitHub release. The release tag comes from the `version` in `package.json`; bump it for each real release so the tag, installer and in-app version all match. A repeat of an existing version gets a `-build.N` suffix.
 
+**Auto-update needs a version bump.** The in-app updater (`electron-updater`, `src/main/updater.ts`) compares the `version` in `package.json`, not the tag, so a release only reaches users if its version is higher than theirs. It reads `latest-mac.yml` / `latest.yml` / `latest-linux.yml` and the macOS **zip** from the release, so the workflow uploads `*.zip` and `latest*.yml` alongside the installers. Updates only run in packaged builds, never in `npm run dev`.
+
+**macOS signing in CI.** The macOS job imports a Developer ID certificate, signs every binary in `build/afterPack.mac.js`, notarizes the app with `notarytool` and staples the ticket. It needs these repository secrets: `MAC_CERT_P12` (base64 `.p12`), `MAC_CERT_PASSWORD`, `SIGN_IDENTITY` (`Developer ID Application: Name (TEAMID)`), `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID`. Without `MAC_CERT_P12` the job falls back to an ad-hoc signed build.
+
 ---
 
 ## 🧩 How It Works
@@ -251,9 +260,13 @@ The app measures the RDP container with `ResizeObserver` and subtracts the toolb
 
 ### macOS code signing workarounds
 
-#### "App is damaged" Gatekeeper fix
+#### Signed release builds
 
-After downloading TunnelGate on macOS, Gatekeeper may mark the app as damaged:
+Set `SIGN_IDENTITY`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID` (and `CSC_IDENTITY_AUTO_DISCOVERY=false` so `electron-builder` does not sign a second time) before `npx electron-builder --mac`. `build/afterPack.mac.js` then signs with the Developer ID certificate in your keychain, notarizes, and staples. `SIGN_IDENTITY` must start with `Developer ID Application:`; an Apple Development certificate is rejected by notarization. Without `SIGN_IDENTITY` the build is ad-hoc signed for local use. Keep these values in an untracked file such as `.env.release`.
+
+#### "App is damaged" Gatekeeper fix (unsigned builds only)
+
+Notarized releases (2.2.3+) do not need this. If an ad-hoc signed or older build is marked as damaged by Gatekeeper:
 
 ```sh
 xattr -cr /Applications/TunnelGate.app
@@ -313,6 +326,7 @@ src/
 │   ├── ipcHandlers.ts     # IPC channel registration
 │   ├── rdpViewManager.ts  # Addon bridge, clipboard bridge, Mac shortcut forwarding
 │   ├── tunnelManager.ts   # cloudflared spawn/kill lifecycle
+│   ├── updater.ts         # electron-updater: check, download, install-on-restart
 │   ├── credentialStore.ts # safeStorage encrypt/decrypt wrapper
 │   └── store.ts           # electron-store persistence
 ├── renderer/              # React frontend (Vite)
